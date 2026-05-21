@@ -207,7 +207,7 @@ endif()
 
 set_tests_properties(libf3d::TestSDKUtils PROPERTIES ENVIRONMENT "F3D_TEST_ENV_STANDARD=TestEnv;F3D_TEST_ENV_EXTENDED=TestËnv;F3D_TEST_ENV_UTF8=🤔;")
 
-target_link_libraries(libf3dSDKTests libf3d ${libf3dSDKTests_link_libs})
+target_link_libraries(libf3dSDKTests libf3d VTK::CommonCore VTK::CommonDataModel ${libf3dSDKTests_link_libs})
 target_include_directories(libf3dSDKTests PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../private>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../private>
