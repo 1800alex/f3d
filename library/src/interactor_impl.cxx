@@ -1,6 +1,7 @@
 #include "interactor_impl.h"
 
 #include "animationManager.h"
+#include "measurementManager.h"
 #include "engine.h"
 #include "log.h"
 #include "scene_impl.h"
@@ -75,6 +76,7 @@ public:
     , Window(window)
     , Scene(scene)
     , Interactor(inter)
+    , MeasurementManager(options, window)
   {
     window::Type type = window.getType();
     if (type == window::Type::GLX || type == window::Type::WGL || type == window::Type::COCOA ||
@@ -670,6 +672,7 @@ public:
   scene_impl& Scene;
   interactor_impl& Interactor;
   animationManager* AnimationManager;
+  measurementManager MeasurementManager;
 
   vtkSmartPointer<vtkRenderWindowInteractor> VTKInteractor;
   vtkNew<vtkF3DInteractorStyle> Style;
@@ -709,6 +712,7 @@ interactor_impl::interactor_impl(options& options, window_impl& window, scene_im
   // scene need the interactor, scene will set the AnimationManager on the interactor
   this->Internals->Scene.SetInteractor(this);
   this->Internals->Window.SetInteractor(this);
+  this->Internals->MeasurementManager.SetInteractor(this);
   assert(this->Internals->AnimationManager);
 
   this->initCommands();
@@ -1338,6 +1342,16 @@ interactor& interactor_impl::initCommands()
     command_documentation_t{ "toggle_animation", "start/stop the animation" });
 
   this->addCommand(
+    "toggle_measurement",
+    [&](const std::vector<std::string>&)
+    {
+      this->Internals->MeasurementManager.ToggleMeasurement();
+      this->Internals->Window.GetRenderer()->SetCheatSheetConfigured(false);
+      this->requestRender();
+    },
+    command_documentation_t{ "toggle_measurement", "toggle measurement mode on/off" });
+
+  this->addCommand(
     "toggle_animation_backward",
     [&](const std::vector<std::string>&) { this->toggleAnimation(AnimationDirection::BACKWARD); },
     command_documentation_t{ "toggle_animation_backward", "start/stop the animation backward" });
@@ -1702,6 +1716,9 @@ interactor& interactor_impl::initBindings()
 #if F3D_MODULE_UI
   this->addBinding({mod_t::NONE, "N"}, "toggle ui.filename","Scene", std::bind(docTgl, "Filename", std::cref(opts.ui.filename)), f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::NONE, "M"}, "toggle ui.metadata","Scene", std::bind(docTgl, "Metadata", std::cref(opts.ui.metadata)), f3d::interactor::BindingType::TOGGLE);
+  this->addBinding({mod_t::SHIFT, "M"}, "toggle_measurement", "Scene",
+    [&]() { return std::pair(std::string("Measurement mode"), this->Internals->MeasurementManager.IsActive() ? std::string("ON") : std::string("OFF")); },
+    f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::SHIFT, "N"}, "toggle ui.hdri_filename","Scene", std::bind(docTgl, "HDRI filename", std::cref(opts.ui.hdri_filename)), f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::SHIFT, "H"}, "toggle ui.scene_hierarchy","Scene", std::bind(docTgl, "Scene hierarchy", std::cref(opts.ui.scene_hierarchy)), f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::NONE, "Z"}, "toggle ui.fps","Scene", std::bind(docTgl, "FPS Counter", std::cref(opts.ui.fps)), f3d::interactor::BindingType::TOGGLE);
