@@ -6,6 +6,12 @@
 
 #include <vtkActor.h>
 #include <vtkCell.h>
+#include <vtkF3DRenderer.h>
+#include <vtkLineSource.h>
+#include <vtkNew.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkProperty.h>
+#include <vtkSphereSource.h>
 
 #include <cmath>
 #include <sstream>
@@ -111,12 +117,87 @@ std::string measurementManager::GetResultString() const
 }
 
 //----------------------------------------------------------------------------
-void measurementManager::UpdateActors()
+void measurementManager::RemoveActors()
 {
+  vtkF3DRenderer* renderer = this->Window.GetRenderer();
+  if (renderer != nullptr)
+  {
+    for (const auto& actor : this->Actors)
+    {
+      renderer->RemoveActor(actor);
+    }
+  }
+  this->Actors.clear();
 }
 
 //----------------------------------------------------------------------------
-void measurementManager::RemoveActors()
+void measurementManager::UpdateActors()
 {
+  this->RemoveActors();
+
+  vtkF3DRenderer* renderer = this->Window.GetRenderer();
+  if (renderer == nullptr)
+  {
+    return;
+  }
+
+  // Estimate a marker size from the renderer's visible bounds.
+  double bounds[6];
+  renderer->ComputeVisiblePropBounds(bounds);
+  const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
+    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
+    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
+  const double markerRadius = (diag > 0.0 ? diag : 1.0) * 0.01;
+
+  const auto addLine = [&](const std::array<double, 3>& a, const std::array<double, 3>& b,
+                         double r, double g, double bl, double width)
+  {
+    vtkNew<vtkLineSource> line;
+    line->SetPoint1(a[0], a[1], a[2]);
+    line->SetPoint2(b[0], b[1], b[2]);
+    vtkNew<vtkPolyDataMapper> mapper;
+    mapper->SetInputConnection(line->GetOutputPort());
+    vtkNew<vtkActor> actor;
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(r, g, bl);
+    actor->GetProperty()->SetLineWidth(width);
+    actor->PickableOff();
+    renderer->AddActor(actor);
+    this->Actors.emplace_back(actor);
+  };
+
+  const auto addSphere = [&](const std::array<double, 3>& c)
+  {
+    vtkNew<vtkSphereSource> sphere;
+    sphere->SetCenter(c[0], c[1], c[2]);
+    sphere->SetRadius(markerRadius);
+    vtkNew<vtkPolyDataMapper> mapper;
+    mapper->SetInputConnection(sphere->GetOutputPort());
+    vtkNew<vtkActor> actor;
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(1.0, 0.85, 0.0);
+    actor->PickableOff();
+    renderer->AddActor(actor);
+    this->Actors.emplace_back(actor);
+  };
+
+  // Markers for each selected object.
+  for (const MeasureObject& obj : this->Selection)
+  {
+    if (obj.ObjType == MeasureObject::Type::POINT)
+    {
+      addSphere(obj.P0);
+    }
+    else
+    {
+      addLine(obj.P0, obj.P1, 1.0, 0.85, 0.0, 4.0); // highlight the selected edge
+    }
+  }
+
+  // Connecting line between the two closest points.
+  if (this->Result.has_value())
+  {
+    addLine(this->Result->ClosestA, this->Result->ClosestB, 0.1, 0.8, 1.0, 2.0);
+  }
 }
 }
