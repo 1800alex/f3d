@@ -184,6 +184,7 @@
           "helpText": "Unit measurement results are displayed in (mm/cm/m/in/ft)",
           "valueHelper": "<unit>"
         },
+        { "longName": "measurement-axis", "helpText": "Measurement axis constraint (free/x/y/z)", "valueHelper": "<axis>" },
         {
           "longName": "grid",
           "shortName": "g",

@@ -201,6 +201,10 @@
       "display_unit": {
         "type": "string",
         "default_value": "mm"
+      },
+      "axis": {
+        "type": "string",
+        "default_value": "free"
       }
     },
     "x_color": {

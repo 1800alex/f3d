@@ -135,6 +135,10 @@ Unit the model geometry coordinates are expressed in, used by measurement mode. 
 
 Unit measurement results are displayed in. Same accepted values as `--measurement-model-unit`.
 
+### `--measurement-axis=<axis>` (_string_, default: `free`)
+
+Constrain measurement-mode results to a single model axis. One of `free` (straight-line distance), `x`, `y`, or `z`.
+
 ### `--x-color` (_color_, default: `f3d_red`)
 
 Set the X axis color in both widget and grid.

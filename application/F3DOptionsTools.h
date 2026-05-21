@@ -75,6 +75,7 @@ static inline const std::map<std::string_view, std::string_view> LibOptionsNames
   { "axis", "ui.axis" },
   { "measurement-model-unit", "ui.measurement.model_unit" },
   { "measurement-display-unit", "ui.measurement.display_unit" },
+  { "measurement-axis", "ui.measurement.axis" },
   { "x-color", "ui.x_color" },
   { "y-color", "ui.y_color" },
   { "z-color", "ui.z_color" },
