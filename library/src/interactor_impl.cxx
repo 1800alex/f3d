@@ -22,7 +22,9 @@
 #include "vtkF3DUserEvents.h"
 
 #include <vtkCallbackCommand.h>
+#include <vtkCell.h>
 #include <vtkCellPicker.h>
+#include <vtkDataSet.h>
 #include <vtkGenericRenderWindowInteractor.h>
 #include <vtkMath.h>
 #include <vtkMatrix3x3.h>
@@ -134,6 +136,11 @@ public:
     middleButtonReleaseCallback->SetClientData(this);
     middleButtonReleaseCallback->SetCallback(OnMiddleButtonRelease);
     this->Style->AddObserver(vtkCommand::MiddleButtonReleaseEvent, middleButtonReleaseCallback);
+
+    vtkNew<vtkCallbackCommand> leftButtonPressCallback;
+    leftButtonPressCallback->SetClientData(this);
+    leftButtonPressCallback->SetCallback(OnLeftButtonPress);
+    this->Style->AddObserver(vtkCommand::LeftButtonPressEvent, leftButtonPressCallback);
 
     this->Recorder = vtkSmartPointer<vtkF3DInteractorEventRecorder>::New();
     this->Recorder->SetInteractor(this->VTKInteractor);
@@ -335,6 +342,14 @@ public:
       interaction[0] = std::toupper(interaction[0]);
     }
 
+    if (interaction == "Escape" && self->MeasurementManager.IsActive() &&
+      self->MeasurementManager.HasSelection())
+    {
+      self->MeasurementManager.Clear();
+      self->Style->GetInteractor()->GetRenderWindow()->Render();
+      return;
+    }
+
     self->TriggerBinding(interaction, "");
   }
 
@@ -359,6 +374,42 @@ public:
     }
 
     self->TriggerBinding("Drop", filesString);
+  }
+
+  //----------------------------------------------------------------------------
+  static void OnLeftButtonPress(vtkObject*, unsigned long, void* clientData, void*)
+  {
+    internals* self = static_cast<internals*>(clientData);
+
+    if (!self->MeasurementManager.IsActive())
+    {
+      // Not in measurement mode: let the normal interactor style handle it.
+      self->Style->OnLeftButtonDown();
+      return;
+    }
+
+    const int* pos = self->VTKInteractor->GetEventPosition();
+    vtkRenderer* renderer =
+      self->VTKInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+
+    if (self->CellPicker->Pick(pos[0], pos[1], 0, renderer))
+    {
+      double picked[3];
+      self->CellPicker->GetPickPosition(picked);
+      vtkCell* cell = nullptr;
+      vtkDataSet* ds = self->CellPicker->GetDataSet();
+      const vtkIdType cellId = self->CellPicker->GetCellId();
+      if (ds != nullptr && cellId >= 0)
+      {
+        cell = ds->GetCell(cellId);
+      }
+      if (cell != nullptr)
+      {
+        self->MeasurementManager.HandlePick({ picked[0], picked[1], picked[2] }, cell);
+        self->Style->GetInteractor()->GetRenderWindow()->Render();
+      }
+    }
+    // Click consumed: do NOT call OnLeftButtonDown(), so the camera does not rotate.
   }
 
   //----------------------------------------------------------------------------
@@ -2179,6 +2230,12 @@ interactor& interactor_impl::requestStop()
 void interactor_impl::SetAnimationManager(animationManager* manager)
 {
   this->Internals->AnimationManager = manager;
+}
+
+//----------------------------------------------------------------------------
+void interactor_impl::ClearMeasurement()
+{
+  this->Internals->MeasurementManager.Clear();
 }
 
 //----------------------------------------------------------------------------
