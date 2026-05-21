@@ -372,6 +372,7 @@ void measurementManager::RefreshPanel()
   if (renderer != nullptr)
   {
     renderer->ConfigureMeasurement(this->IsPanelVisible(), this->GetResultString(),
+      this->GetComponentsString(), this->Options.ui.measurement.axis,
       this->Options.ui.measurement.model_unit, this->Options.ui.measurement.display_unit);
   }
 }

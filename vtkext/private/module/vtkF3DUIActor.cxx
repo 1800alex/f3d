@@ -99,6 +99,18 @@ void vtkF3DUIActor::SetMeasurementUnits(
 }
 
 //----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurementComponents(const std::string& components)
+{
+  this->MeasurementComponents = components;
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurementAxis(const std::string& axis)
+{
+  this->MeasurementAxis = axis;
+}
+
+//----------------------------------------------------------------------------
 void vtkF3DUIActor::SetSceneHierarchyVisibility(bool show)
 {
   this->SceneHierarchyVisible = show;

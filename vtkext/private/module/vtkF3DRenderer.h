@@ -556,7 +556,8 @@ public:
    * Configure the measurement panel UI from the given state.
    */
   void ConfigureMeasurement(bool visible, const std::string& text,
-    const std::string& modelUnit, const std::string& displayUnit);
+    const std::string& components, const std::string& axis, const std::string& modelUnit,
+    const std::string& displayUnit);
 
 private:
   vtkF3DRenderer();

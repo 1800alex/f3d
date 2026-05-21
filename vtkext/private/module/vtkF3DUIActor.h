@@ -141,6 +141,18 @@ public:
   void SetMeasurementUnits(const std::string& modelUnit, const std::string& displayUnit);
 
   /**
+   * Set the measurement per-axis breakdown string
+   * Empty by default
+   */
+  void SetMeasurementComponents(const std::string& components);
+
+  /**
+   * Set the measurement axis (free/x/y/z)
+   * "free" by default
+   */
+  void SetMeasurementAxis(const std::string& axis);
+
+  /**
    * Set the cheatsheet visibility
    * False by default
    */
@@ -353,6 +365,8 @@ protected:
   std::string Measurement = "";
   std::string MeasurementModelUnit = "";
   std::string MeasurementDisplayUnit = "";
+  std::string MeasurementComponents = "";
+  std::string MeasurementAxis = "free";
 
   bool SceneHierarchyVisible = false;
 
