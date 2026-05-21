@@ -13,6 +13,7 @@ list(APPEND libf3dSDKTests_list
      TestSDKInteractorCommand.cxx
      TestSDKInteractorDropFullScene.cxx
      TestSDKLog.cxx
+     TestSDKMeasurement.cxx
      TestSDKMultiColoring.cxx
      TestSDKOptions.cxx
      TestSDKOptionsIO.cxx
@@ -133,7 +134,8 @@ set(CMAKE_TESTDRIVER_ARGVC_FUNCTION "")
 create_test_sourcelist(_libf3dSDKTests libf3dSDKTests.cxx ${libf3dSDKTests_list} EXTRA_INCLUDE engine.h)
 
 # add the executable
-add_executable(libf3dSDKTests ${_libf3dSDKTests})
+add_executable(libf3dSDKTests ${_libf3dSDKTests}
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/measurementTools.cxx)
 set_target_properties(libf3dSDKTests PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   )
@@ -156,6 +158,7 @@ endif()
 list(APPEND libf3dSDKTestsNoRender_list
      TestSDKEngineExceptions
      TestSDKLog
+     TestSDKMeasurement
      TestSDKOptions
      TestSDKOptionsIO
      TestSDKScene)
@@ -205,6 +208,11 @@ endif()
 set_tests_properties(libf3d::TestSDKUtils PROPERTIES ENVIRONMENT "F3D_TEST_ENV_STANDARD=TestEnv;F3D_TEST_ENV_EXTENDED=TestËnv;F3D_TEST_ENV_UTF8=🤔;")
 
 target_link_libraries(libf3dSDKTests libf3d ${libf3dSDKTests_link_libs})
+target_include_directories(libf3dSDKTests PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../private>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../private>
+  $<TARGET_PROPERTY:VTK::CommonCore,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:VTK::CommonDataModel,INTERFACE_INCLUDE_DIRECTORIES>)
 target_compile_options(libf3dSDKTests PUBLIC ${f3d_compile_options_public} PRIVATE ${f3d_compile_options_private})
 target_link_options(libf3dSDKTests PUBLIC ${f3d_link_options_public})
 
