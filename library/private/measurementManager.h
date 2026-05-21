@@ -55,9 +55,22 @@ public:
   void HandlePick(const std::array<double, 3>& worldPos, vtkCell* cell);
 
   /**
-   * Clear the current selection, measurement and 3D actors.
+   * Clear the current selection, measurement, hover preview and 3D actors.
    */
   void Clear();
+
+  /**
+   * Resolve a pick under the cursor into a preview ("hover") highlight of the
+   * object that would be selected if clicked. A null cell clears the preview.
+   * Returns true if the preview changed and a render is needed.
+   */
+  bool HandleHover(const std::array<double, 3>& worldPos, vtkCell* cell);
+
+  /**
+   * Remove the hover preview highlight, if any.
+   * Returns true if a preview existed and was removed (a render is needed).
+   */
+  bool ClearHover();
 
   /**
    * Whether at least one object is currently selected.
@@ -97,6 +110,12 @@ private:
   void RemoveActors();
 
   /**
+   * Rebuild the hover preview actor from the current HoverObject (or remove it
+   * when there is no hover preview).
+   */
+  void UpdateHoverActor();
+
+  /**
    * Push the current measurement state to the renderer's UI panel.
    */
   void RefreshPanel();
@@ -107,8 +126,10 @@ private:
   bool Active = false;
   std::vector<MeasureObject> Selection;
   std::optional<MeasureResult> Result;
+  std::optional<MeasureObject> HoverObject;
 
   std::vector<vtkSmartPointer<vtkActor>> Actors;
+  vtkSmartPointer<vtkActor> HoverActor;
 };
 }
 }

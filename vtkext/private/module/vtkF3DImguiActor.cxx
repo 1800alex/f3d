@@ -873,7 +873,11 @@ void vtkF3DImguiActor::RenderMeasurement()
   const ImGuiViewport* viewport = ImGui::GetMainViewport();
   constexpr float margin = F3DStyle::GetDefaultMargin();
 
+  // Underlying option values; the empty string means "unitless".
   static const char* units[] = { "", "mm", "cm", "m", "in", "ft" };
+  // Labels shown in the combo; the unitless entry needs a visible label
+  // instead of rendering as a blank line.
+  static const char* unitLabels[] = { "(none)", "mm", "cm", "m", "in", "ft" };
 
   const auto unitIndex = [&](const std::string& u)
   {
@@ -909,13 +913,13 @@ void vtkF3DImguiActor::RenderMeasurement()
   ImGui::Separator();
 
   int modelIdx = unitIndex(this->MeasurementModelUnit);
-  if (ImGui::Combo("Model units", &modelIdx, units, IM_ARRAYSIZE(units)))
+  if (ImGui::Combo("Model units", &modelIdx, unitLabels, IM_ARRAYSIZE(unitLabels)))
   {
     this->EmitMeasurementUnitChange("ui.measurement.model_unit", units[modelIdx]);
   }
 
   int displayIdx = unitIndex(this->MeasurementDisplayUnit);
-  if (ImGui::Combo("Display units", &displayIdx, units, IM_ARRAYSIZE(units)))
+  if (ImGui::Combo("Display units", &displayIdx, unitLabels, IM_ARRAYSIZE(unitLabels)))
   {
     this->EmitMeasurementUnitChange("ui.measurement.display_unit", units[displayIdx]);
   }

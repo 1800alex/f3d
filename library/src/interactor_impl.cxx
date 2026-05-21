@@ -142,6 +142,11 @@ public:
     leftButtonPressCallback->SetCallback(OnLeftButtonPress);
     this->Style->AddObserver(vtkCommand::LeftButtonPressEvent, leftButtonPressCallback);
 
+    vtkNew<vtkCallbackCommand> mouseMoveCallback;
+    mouseMoveCallback->SetClientData(this);
+    mouseMoveCallback->SetCallback(OnMouseMove);
+    this->VTKInteractor->AddObserver(vtkCommand::MouseMoveEvent, mouseMoveCallback);
+
     this->Recorder = vtkSmartPointer<vtkF3DInteractorEventRecorder>::New();
     this->Recorder->SetInteractor(this->VTKInteractor);
   }
@@ -392,10 +397,11 @@ public:
     vtkRenderer* renderer =
       self->VTKInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
 
+    bool picked = false;
     if (self->CellPicker->Pick(pos[0], pos[1], 0, renderer))
     {
-      double picked[3];
-      self->CellPicker->GetPickPosition(picked);
+      double pickPos[3];
+      self->CellPicker->GetPickPosition(pickPos);
       vtkCell* cell = nullptr;
       vtkDataSet* ds = self->CellPicker->GetDataSet();
       const vtkIdType cellId = self->CellPicker->GetCellId();
@@ -405,11 +411,56 @@ public:
       }
       if (cell != nullptr)
       {
-        self->MeasurementManager.HandlePick({ picked[0], picked[1], picked[2] }, cell);
+        self->MeasurementManager.HandlePick({ pickPos[0], pickPos[1], pickPos[2] }, cell);
         self->Style->GetInteractor()->GetRenderWindow()->Render();
+        picked = true;
       }
     }
-    // Click consumed: do NOT call OnLeftButtonDown(), so the camera does not rotate.
+
+    // If the click did not land on a viable selection, fall through to the
+    // normal interactor style so the user can still rotate/drag the camera.
+    if (!picked)
+    {
+      self->Style->OnLeftButtonDown();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // While measurement mode is active, preview the object under the cursor.
+  static void OnMouseMove(vtkObject*, unsigned long, void* clientData, void*)
+  {
+    internals* self = static_cast<internals*>(clientData);
+
+    if (!self->MeasurementManager.IsActive())
+    {
+      return;
+    }
+
+    const int* pos = self->VTKInteractor->GetEventPosition();
+    vtkRenderer* renderer =
+      self->VTKInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+
+    vtkCell* cell = nullptr;
+    double pickPos[3] = { 0.0, 0.0, 0.0 };
+    if (self->CellPicker->Pick(pos[0], pos[1], 0, renderer))
+    {
+      self->CellPicker->GetPickPosition(pickPos);
+      vtkDataSet* ds = self->CellPicker->GetDataSet();
+      const vtkIdType cellId = self->CellPicker->GetCellId();
+      if (ds != nullptr && cellId >= 0)
+      {
+        cell = ds->GetCell(cellId);
+      }
+    }
+
+    const bool changed = (cell != nullptr)
+      ? self->MeasurementManager.HandleHover({ pickPos[0], pickPos[1], pickPos[2] }, cell)
+      : self->MeasurementManager.ClearHover();
+
+    if (changed)
+    {
+      self->VTKInteractor->GetRenderWindow()->Render();
+    }
   }
 
   //----------------------------------------------------------------------------

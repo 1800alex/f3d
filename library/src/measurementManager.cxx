@@ -16,6 +16,20 @@
 #include <iomanip>
 #include <sstream>
 
+namespace
+{
+// Snap tolerance for pick resolution, scaled to the picked cell's size.
+double SnapToleranceForCell(vtkCell* cell)
+{
+  double bounds[6];
+  cell->GetBounds(bounds);
+  const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
+    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
+    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
+  return 0.25 * diag;
+}
+}
+
 namespace f3d::detail
 {
 //----------------------------------------------------------------------------
@@ -32,6 +46,12 @@ measurementManager::~measurementManager() = default;
 void measurementManager::ToggleMeasurement()
 {
   this->Active = !this->Active;
+  if (!this->Active)
+  {
+    // The completed measurement persists, but the transient hover preview
+    // only makes sense while the mode is active.
+    this->ClearHover();
+  }
   this->RefreshPanel();
 }
 
@@ -41,6 +61,7 @@ void measurementManager::Clear()
   this->Selection.clear();
   this->Result.reset();
   this->RemoveActors();
+  this->ClearHover();
   this->RefreshPanel();
 }
 
@@ -60,22 +81,54 @@ void measurementManager::HandlePick(
     this->Result.reset();
   }
 
-  // Snap tolerance scales with the picked cell's size.
-  double bounds[6];
-  cell->GetBounds(bounds);
-  const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
-    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
-    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
-  const double snapTol = 0.25 * diag;
-
-  this->Selection.push_back(ResolvePickedObject(worldPos, cell, snapTol));
+  this->Selection.push_back(
+    ResolvePickedObject(worldPos, cell, SnapToleranceForCell(cell)));
 
   if (this->Selection.size() == 2)
   {
     this->Result = ComputeDistance(this->Selection[0], this->Selection[1]);
   }
 
+  // The hover preview is recomputed on the next mouse move; drop it now so it
+  // does not sit on top of the freshly placed selection marker.
+  this->ClearHover();
   this->UpdateActors();
+}
+
+//----------------------------------------------------------------------------
+bool measurementManager::HandleHover(
+  const std::array<double, 3>& worldPos, vtkCell* cell)
+{
+  if (!this->Active || cell == nullptr)
+  {
+    return this->ClearHover();
+  }
+
+  const MeasureObject obj =
+    ResolvePickedObject(worldPos, cell, SnapToleranceForCell(cell));
+
+  // Skip the rebuild (and the render it triggers) when hovering the same object.
+  if (this->HoverObject.has_value() && this->HoverObject->ObjType == obj.ObjType &&
+    this->HoverObject->P0 == obj.P0 && this->HoverObject->P1 == obj.P1)
+  {
+    return false;
+  }
+
+  this->HoverObject = obj;
+  this->UpdateHoverActor();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool measurementManager::ClearHover()
+{
+  if (!this->HoverObject.has_value())
+  {
+    return false;
+  }
+  this->HoverObject.reset();
+  this->UpdateHoverActor();
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -119,6 +172,60 @@ void measurementManager::RemoveActors()
     }
   }
   this->Actors.clear();
+}
+
+//----------------------------------------------------------------------------
+void measurementManager::UpdateHoverActor()
+{
+  vtkF3DRenderer* renderer = this->Window.GetRenderer();
+  if (renderer == nullptr)
+  {
+    return;
+  }
+
+  if (this->HoverActor != nullptr)
+  {
+    renderer->RemoveActor(this->HoverActor);
+    this->HoverActor = nullptr;
+  }
+
+  if (!this->HoverObject.has_value())
+  {
+    return;
+  }
+
+  // Estimate a marker size from the renderer's visible bounds.
+  double bounds[6];
+  renderer->ComputeVisiblePropBounds(bounds);
+  const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
+    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
+    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
+  const double markerRadius = (diag > 0.0 ? diag : 1.0) * 0.012;
+
+  const MeasureObject& obj = this->HoverObject.value();
+  vtkNew<vtkPolyDataMapper> mapper;
+  if (obj.ObjType == MeasureObject::Type::POINT)
+  {
+    vtkNew<vtkSphereSource> sphere;
+    sphere->SetCenter(obj.P0[0], obj.P0[1], obj.P0[2]);
+    sphere->SetRadius(markerRadius);
+    mapper->SetInputConnection(sphere->GetOutputPort());
+  }
+  else
+  {
+    vtkNew<vtkLineSource> line;
+    line->SetPoint1(obj.P0[0], obj.P0[1], obj.P0[2]);
+    line->SetPoint2(obj.P1[0], obj.P1[1], obj.P1[2]);
+    mapper->SetInputConnection(line->GetOutputPort());
+  }
+
+  vtkNew<vtkActor> actor;
+  actor->SetMapper(mapper);
+  actor->GetProperty()->SetColor(0.4, 0.9, 1.0); // light cyan, distinct from selections
+  actor->GetProperty()->SetLineWidth(3.0);
+  actor->PickableOff();
+  renderer->AddActor(actor);
+  this->HoverActor = actor;
 }
 
 //----------------------------------------------------------------------------
