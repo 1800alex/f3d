@@ -910,19 +910,33 @@ void vtkF3DImguiActor::RenderMeasurement()
 
   ImGui::Begin("Measurement", nullptr, flags);
   ImGui::TextUnformatted(this->Measurement.c_str());
-  ImGui::Separator();
+  ImGui::SeparatorText("Units");
 
-  int modelIdx = unitIndex(this->MeasurementModelUnit);
-  if (ImGui::Combo("Model units", &modelIdx, unitLabels, IM_ARRAYSIZE(unitLabels)))
+  // A labelled combo: a descriptive text label, then the dropdown on the same
+  // line at a fixed offset so the two rows align. The combo uses a hidden
+  // ("##") id so only the descriptive label is shown.
+  const auto unitRow = [&](const char* label, const char* tooltip, const char* comboId,
+                         const std::string& current, const char* optionName)
   {
-    this->EmitMeasurementUnitChange("ui.measurement.model_unit", units[modelIdx]);
-  }
+    ImGui::TextUnformatted(label);
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip("%s", tooltip);
+    }
+    ImGui::SameLine(110.f);
+    ImGui::PushItemWidth(90.f);
+    int idx = unitIndex(current);
+    if (ImGui::Combo(comboId, &idx, unitLabels, IM_ARRAYSIZE(unitLabels)))
+    {
+      this->EmitMeasurementUnitChange(optionName, units[idx]);
+    }
+    ImGui::PopItemWidth();
+  };
 
-  int displayIdx = unitIndex(this->MeasurementDisplayUnit);
-  if (ImGui::Combo("Display units", &displayIdx, unitLabels, IM_ARRAYSIZE(unitLabels)))
-  {
-    this->EmitMeasurementUnitChange("ui.measurement.display_unit", units[displayIdx]);
-  }
+  unitRow("Model is in", "The unit the loaded model's geometry is expressed in",
+    "##modelunit", this->MeasurementModelUnit, "ui.measurement.model_unit");
+  unitRow("Display in", "The unit measurement results are converted to and displayed in",
+    "##displayunit", this->MeasurementDisplayUnit, "ui.measurement.display_unit");
 
   ImGui::End();
 }

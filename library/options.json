@@ -196,11 +196,11 @@
     "measurement": {
       "model_unit": {
         "type": "string",
-        "default_value": ""
+        "default_value": "mm"
       },
       "display_unit": {
         "type": "string",
-        "default_value": ""
+        "default_value": "mm"
       }
     },
     "x_color": {

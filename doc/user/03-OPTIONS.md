@@ -127,11 +127,11 @@ Define the Up direction.
 
 Show _axes_ as a trihedron in the scene.
 
-### `--measurement-model-unit=<unit>` (_string_, default: ``)
+### `--measurement-model-unit=<unit>` (_string_, default: `mm`)
 
 Unit the model geometry coordinates are expressed in, used by measurement mode. One of `mm`, `cm`, `m`, `in`, `ft`, or empty for unitless.
 
-### `--measurement-display-unit=<unit>` (_string_, default: ``)
+### `--measurement-display-unit=<unit>` (_string_, default: `mm`)
 
 Unit measurement results are displayed in. Same accepted values as `--measurement-model-unit`.
 
