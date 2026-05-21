@@ -193,6 +193,16 @@
       "type": "bool",
       "default_value": "false"
     },
+    "measurement": {
+      "model_unit": {
+        "type": "string",
+        "default_value": ""
+      },
+      "display_unit": {
+        "type": "string",
+        "default_value": ""
+      }
+    },
     "x_color": {
       "type": "color",
       "parsed_default_value": "f3d_red"

@@ -127,6 +127,14 @@ Define the Up direction.
 
 Show _axes_ as a trihedron in the scene.
 
+### `--measurement-model-unit=<unit>` (_string_, default: ``)
+
+Unit the model geometry coordinates are expressed in, used by measurement mode. One of `mm`, `cm`, `m`, `in`, `ft`, or empty for unitless.
+
+### `--measurement-display-unit=<unit>` (_string_, default: ``)
+
+Unit measurement results are displayed in. Same accepted values as `--measurement-model-unit`.
+
 ### `--x-color` (_color_, default: `f3d_red`)
 
 Set the X axis color in both widget and grid.

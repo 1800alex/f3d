@@ -73,6 +73,8 @@ static inline const std::map<std::string_view, std::string_view> LibOptionsNames
   { "animation-progress", "ui.animation_progress" },
   { "up", "scene.up_direction" },
   { "axis", "ui.axis" },
+  { "measurement-model-unit", "ui.measurement.model_unit" },
+  { "measurement-display-unit", "ui.measurement.display_unit" },
   { "x-color", "ui.x_color" },
   { "y-color", "ui.y_color" },
   { "z-color", "ui.z_color" },
