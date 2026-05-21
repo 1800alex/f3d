@@ -133,6 +133,12 @@ in) and **Display units** (the unit to show results in). Supported units are
 disables conversion. These map to the `ui.measurement.model_unit` and
 `ui.measurement.display_unit` options.
 
+The panel also shows a per-axis breakdown (X, Y, Z) of the measurement and an
+**Axis** selector. With `Free` selected the straight-line distance is reported;
+selecting `X`, `Y` or `Z` reports the distance along that model axis and draws
+a right-angle path showing how the straight-line distance decomposes. The axis
+maps to the `ui.measurement.axis` option.
+
 Press <kbd>Esc</kbd> while in measurement mode to clear the current selection.
 Selecting a third object discards the previous measurement and starts a new one.
 

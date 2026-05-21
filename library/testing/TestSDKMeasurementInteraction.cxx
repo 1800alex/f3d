@@ -2,6 +2,7 @@
 
 #include <engine.h>
 #include <interactor.h>
+#include <options.h>
 #include <scene.h>
 #include <window.h>
 
@@ -35,6 +36,18 @@ int TestSDKMeasurementInteraction(int argc, char* argv[])
 
   inter.triggerKeyboardKey(f3d::interactor::InputAction::PRESS, "Escape");
 
+  eng.getWindow().render();
+
+  // Exercise the axis command and verify the option round-trips.
+  inter.triggerCommand("set_measurement_axis x");
+  eng.getWindow().render();
+  if (eng.getOptions().getAsString("ui.measurement.axis") != "x")
+  {
+    std::cerr << "ui.measurement.axis was not set to x" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  inter.triggerCommand("set_measurement_axis free");
   eng.getWindow().render();
 
   return EXIT_SUCCESS;
