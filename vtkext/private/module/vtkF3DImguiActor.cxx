@@ -891,14 +891,14 @@ void vtkF3DImguiActor::RenderMeasurement()
     return 0;
   };
 
-  // Fixed width; height is auto via AlwaysAutoResize. We still pass an initial
-  // size to avoid the blank-first-frame issue on offscreen rendering.
-  const ImVec2 winSize(260.f, 120.f);
-  const ImVec2 winPos(
-    viewport->WorkSize.x - winSize.x - margin,
-    viewport->WorkSize.y - winSize.y - margin);
-
-  ::SetupNextWindow(winPos, winSize);
+  // Auto-resizing window (AlwaysAutoResize) anchored by its bottom-right corner
+  // (pivot {1,1}) to the viewport's bottom-right corner, so the panel grows
+  // up-and-left as rows are added and never overflows the viewport. An initial
+  // size avoids a blank first frame when rendering offscreen.
+  ImGui::SetNextWindowSize(ImVec2(280.f, 220.f), ImGuiCond_Once);
+  ImGui::SetNextWindowPos(
+    ImVec2(viewport->WorkSize.x - margin, viewport->WorkSize.y - margin), ImGuiCond_Always,
+    ImVec2(1.0f, 1.0f));
 
   ImGuiStyle& style = ImGui::GetStyle();
   style.Colors[ImGuiCol_WindowBg] = ImVec4(
