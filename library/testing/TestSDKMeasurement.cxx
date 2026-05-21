@@ -6,6 +6,9 @@
 #include <vtkPoints.h>
 #include <vtkTriangle.h>
 
+#include <cmath>
+#include <string>
+
 int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
   PseudoUnitTest test;
@@ -82,6 +85,54 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
           (obj.P0 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 }) &&
             obj.P1 == approx(std::array<double, 3>{ 0.0, 0.0, 0.0 })));
       test("resolve pick snaps to nearest edge", isEdgeAB);
+    }
+  }
+
+  // --- ComputeAxisPath ---
+  {
+    const std::array<double, 3> a{ 0.0, 0.0, 0.0 };
+    const std::array<double, 3> b{ 3.0, 4.0, 5.0 };
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+      const auto path = f3d::detail::ComputeAxisPath(a, b, axis);
+      const std::string tag = "ComputeAxisPath axis " + std::to_string(axis);
+
+      // Endpoints.
+      test(tag + " starts at a", path[0] == approx(a));
+      test(tag + " ends at b", path[3] == approx(b));
+
+      // The first leg lies purely along the selected axis with length |b-a|.
+      std::array<double, 3> leg0{ path[1][0] - path[0][0], path[1][1] - path[0][1],
+        path[1][2] - path[0][2] };
+      double expectedLen = std::fabs(b[axis] - a[axis]);
+      bool alongAxis = true;
+      double legLen = 0.0;
+      for (int i = 0; i < 3; ++i)
+      {
+        if (i == axis)
+        {
+          legLen = std::fabs(leg0[i]);
+        }
+        else if (std::fabs(leg0[i]) > 1e-9)
+        {
+          alongAxis = false;
+        }
+      }
+      test(tag + " first leg along axis", alongAxis);
+      test(tag + " first leg length", legLen == approx(expectedLen));
+
+      // The three legs sum from a to b.
+      std::array<double, 3> sum{ 0.0, 0.0, 0.0 };
+      for (int k = 0; k < 3; ++k)
+      {
+        for (int i = 0; i < 3; ++i)
+        {
+          sum[i] += path[k + 1][i] - path[k][i];
+        }
+      }
+      std::array<double, 3> delta{ b[0] - a[0], b[1] - a[1], b[2] - a[2] };
+      test(tag + " legs sum to b-a", sum == approx(delta));
     }
   }
 

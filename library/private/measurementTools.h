@@ -68,6 +68,15 @@ MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b);
  */
 MeasureObject ResolvePickedObject(
   const std::array<double, 3>& worldPos, vtkCell* cell, double snapTol);
+
+/**
+ * Return the 4 points of the right-angle "staircase" path from a to b for the
+ * given axis (0=X, 1=Y, 2=Z). Point [0] is a and point [3] is b. The leg
+ * [0]->[1] is the selected-axis leg (drawn first from a); the other two legs
+ * follow in ascending axis order. The three legs sum from a to b.
+ */
+std::array<std::array<double, 3>, 4> ComputeAxisPath(
+  const std::array<double, 3>& a, const std::array<double, 3>& b, int axis);
 }
 }
 #endif

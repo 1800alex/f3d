@@ -143,6 +143,39 @@ MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b)
 }
 
 //----------------------------------------------------------------------------
+std::array<std::array<double, 3>, 4> ComputeAxisPath(
+  const std::array<double, 3>& a, const std::array<double, 3>& b, int axis)
+{
+  // Each leg moves along a single model axis by that axis' delta.
+  std::array<std::array<double, 3>, 3> legs{};
+  for (int i = 0; i < 3; ++i)
+  {
+    legs[i] = { 0.0, 0.0, 0.0 };
+    legs[i][i] = b[i] - a[i];
+  }
+
+  // Draw the selected axis leg first, then the remaining two in ascending order.
+  std::array<int, 3> order{ axis, 0, 0 };
+  int n = 1;
+  for (int i = 0; i < 3; ++i)
+  {
+    if (i != axis)
+    {
+      order[n++] = i;
+    }
+  }
+
+  std::array<std::array<double, 3>, 4> path{};
+  path[0] = a;
+  for (int k = 0; k < 3; ++k)
+  {
+    const std::array<double, 3>& leg = legs[order[k]];
+    path[k + 1] = { path[k][0] + leg[0], path[k][1] + leg[1], path[k][2] + leg[2] };
+  }
+  return path;
+}
+
+//----------------------------------------------------------------------------
 std::optional<double> UnitToMeters(const std::string& unit)
 {
   static const std::map<std::string, double> table = {
