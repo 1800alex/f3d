@@ -1481,6 +1481,23 @@ interactor& interactor_impl::initCommands()
       "set a measurement unit (model|display) and refresh the panel" });
 
   this->addCommand(
+    "set_measurement_axis",
+    [&](const std::vector<std::string>& args)
+    {
+      // args: <free|x|y|z>
+      if (args.empty())
+      {
+        return;
+      }
+      this->Internals->Options.setAsString("ui.measurement.axis", args[0]);
+      // The axis affects the drawn geometry, so rebuild actors, not just the panel.
+      this->Internals->MeasurementManager.RefreshMeasurement();
+      this->requestRender();
+    },
+    command_documentation_t{ "set_measurement_axis",
+      "set the measurement axis (free|x|y|z) and refresh the measurement" });
+
+  this->addCommand(
     "toggle_animation_backward",
     [&](const std::vector<std::string>&) { this->toggleAnimation(AnimationDirection::BACKWARD); },
     command_documentation_t{ "toggle_animation_backward", "start/stop the animation backward" });
