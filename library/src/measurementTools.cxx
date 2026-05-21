@@ -141,10 +141,7 @@ MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b)
     result.ClosestA.data(), result.ClosestB.data()));
   return result;
 }
-}
 
-namespace f3d::detail
-{
 //----------------------------------------------------------------------------
 std::optional<double> UnitToMeters(const std::string& unit)
 {

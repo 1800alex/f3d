@@ -763,7 +763,6 @@ interactor_impl::interactor_impl(options& options, window_impl& window, scene_im
   // scene need the interactor, scene will set the AnimationManager on the interactor
   this->Internals->Scene.SetInteractor(this);
   this->Internals->Window.SetInteractor(this);
-  this->Internals->MeasurementManager.SetInteractor(this);
   assert(this->Internals->AnimationManager);
 
   this->initCommands();

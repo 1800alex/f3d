@@ -1,6 +1,5 @@
 #include "measurementManager.h"
 
-#include "interactor_impl.h"
 #include "options.h"
 #include "window_impl.h"
 
@@ -14,6 +13,7 @@
 #include <vtkSphereSource.h>
 
 #include <cmath>
+#include <iomanip>
 #include <sstream>
 
 namespace f3d::detail
@@ -29,23 +29,10 @@ measurementManager::measurementManager(options& options, window_impl& window)
 measurementManager::~measurementManager() = default;
 
 //----------------------------------------------------------------------------
-void measurementManager::SetInteractor(interactor_impl* interactor)
-{
-  this->Interactor = interactor;
-}
-
-//----------------------------------------------------------------------------
 void measurementManager::ToggleMeasurement()
 {
   this->Active = !this->Active;
-  if (!this->Active)
-  {
-    this->Clear(); // Clear() calls RefreshPanel() internally
-  }
-  else
-  {
-    this->RefreshPanel();
-  }
+  this->RefreshPanel();
 }
 
 //----------------------------------------------------------------------------
@@ -116,8 +103,7 @@ std::string measurementManager::GetResultString() const
   }
 
   std::ostringstream oss;
-  oss.precision(4);
-  oss << "Distance: " << value << suffix;
+  oss << std::fixed << std::setprecision(3) << "Distance: " << value << suffix;
   return oss.str();
 }
 

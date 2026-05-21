@@ -24,7 +24,6 @@ class options;
 
 namespace detail
 {
-class interactor_impl;
 class window_impl;
 
 class measurementManager
@@ -34,12 +33,9 @@ public:
   ~measurementManager();
 
   /**
-   * Set the interactor, used to request renders after state changes.
-   */
-  void SetInteractor(interactor_impl* interactor);
-
-  /**
-   * Toggle measurement mode on/off. Turning it off clears the selection.
+   * Toggle measurement mode on/off. A completed measurement and its 3D
+   * annotation remain visible after the mode is turned off; they are removed
+   * by Clear() (triggered by Escape while in mode, or by loading a file).
    */
   void ToggleMeasurement();
 
@@ -107,7 +103,6 @@ private:
 
   options& Options;
   window_impl& Window;
-  interactor_impl* Interactor = nullptr;
 
   bool Active = false;
   std::vector<MeasureObject> Selection;

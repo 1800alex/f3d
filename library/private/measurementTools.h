@@ -15,7 +15,9 @@
 
 class vtkCell;
 
-namespace f3d::detail
+namespace f3d
+{
+namespace detail
 {
 /**
  * A selectable object: either a single point or a finite edge segment.
@@ -66,5 +68,6 @@ MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b);
  */
 MeasureObject ResolvePickedObject(
   const std::array<double, 3>& worldPos, vtkCell* cell, double snapTol);
+}
 }
 #endif
