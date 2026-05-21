@@ -10,6 +10,8 @@
 #include <vtkNew.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
 #include <vtkSphereSource.h>
 
 #include <cmath>
@@ -210,14 +212,46 @@ std::string measurementManager::GetComponentsString() const
 }
 
 //----------------------------------------------------------------------------
+vtkRenderer* measurementManager::GetOverlayRenderer()
+{
+  vtkF3DRenderer* mainRenderer = this->Window.GetRenderer();
+  if (mainRenderer == nullptr)
+  {
+    return nullptr;
+  }
+  vtkRenderWindow* renderWindow = mainRenderer->GetRenderWindow();
+  if (renderWindow == nullptr)
+  {
+    return nullptr;
+  }
+
+  if (this->OverlayRenderer == nullptr)
+  {
+    // A layer-1 renderer renders after the scene with its own fresh depth
+    // buffer, so measurement annotation always draws on top of the model.
+    this->OverlayRenderer = vtkSmartPointer<vtkRenderer>::New();
+    this->OverlayRenderer->SetLayer(1);
+    this->OverlayRenderer->InteractiveOff();
+    renderWindow->AddRenderer(this->OverlayRenderer);
+  }
+  if (renderWindow->GetNumberOfLayers() < 2)
+  {
+    renderWindow->SetNumberOfLayers(2);
+  }
+  // Share the scene camera so the annotation tracks the view.
+  this->OverlayRenderer->SetActiveCamera(mainRenderer->GetActiveCamera());
+  return this->OverlayRenderer;
+}
+
+//----------------------------------------------------------------------------
 void measurementManager::RemoveActors()
 {
-  vtkF3DRenderer* renderer = this->Window.GetRenderer();
-  if (renderer != nullptr)
+  vtkRenderer* overlay = this->GetOverlayRenderer();
+  if (overlay != nullptr)
   {
     for (const auto& actor : this->Actors)
     {
-      renderer->RemoveActor(actor);
+      overlay->RemoveActor(actor);
     }
   }
   this->Actors.clear();
@@ -226,15 +260,16 @@ void measurementManager::RemoveActors()
 //----------------------------------------------------------------------------
 void measurementManager::UpdateHoverActor()
 {
-  vtkF3DRenderer* renderer = this->Window.GetRenderer();
-  if (renderer == nullptr)
+  vtkF3DRenderer* mainRenderer = this->Window.GetRenderer();
+  vtkRenderer* overlay = this->GetOverlayRenderer();
+  if (mainRenderer == nullptr || overlay == nullptr)
   {
     return;
   }
 
   if (this->HoverActor != nullptr)
   {
-    renderer->RemoveActor(this->HoverActor);
+    overlay->RemoveActor(this->HoverActor);
     this->HoverActor = nullptr;
   }
 
@@ -243,9 +278,9 @@ void measurementManager::UpdateHoverActor()
     return;
   }
 
-  // Estimate a marker size from the renderer's visible bounds.
+  // Estimate a marker size from the scene's visible bounds.
   double bounds[6];
-  renderer->ComputeVisiblePropBounds(bounds);
+  mainRenderer->ComputeVisiblePropBounds(bounds);
   const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
     (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
     (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
@@ -272,8 +307,9 @@ void measurementManager::UpdateHoverActor()
   actor->SetMapper(mapper);
   actor->GetProperty()->SetColor(0.4, 0.9, 1.0); // light cyan, distinct from selections
   actor->GetProperty()->SetLineWidth(3.0);
+  actor->GetProperty()->LightingOff(); // flat color: the overlay layer has no lights
   actor->PickableOff();
-  renderer->AddActor(actor);
+  overlay->AddActor(actor);
   this->HoverActor = actor;
 }
 
@@ -282,15 +318,16 @@ void measurementManager::UpdateActors()
 {
   this->RemoveActors();
 
-  vtkF3DRenderer* renderer = this->Window.GetRenderer();
-  if (renderer == nullptr)
+  vtkF3DRenderer* mainRenderer = this->Window.GetRenderer();
+  vtkRenderer* overlay = this->GetOverlayRenderer();
+  if (mainRenderer == nullptr || overlay == nullptr)
   {
     return;
   }
 
-  // Estimate a marker size from the renderer's visible bounds.
+  // Estimate a marker size from the scene's visible bounds.
   double bounds[6];
-  renderer->ComputeVisiblePropBounds(bounds);
+  mainRenderer->ComputeVisiblePropBounds(bounds);
   const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
     (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
     (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
@@ -308,8 +345,9 @@ void measurementManager::UpdateActors()
     actor->SetMapper(mapper);
     actor->GetProperty()->SetColor(r, g, bl);
     actor->GetProperty()->SetLineWidth(width);
+    actor->GetProperty()->LightingOff(); // flat color: the overlay layer has no lights
     actor->PickableOff();
-    renderer->AddActor(actor);
+    overlay->AddActor(actor);
     this->Actors.emplace_back(actor);
   };
 
@@ -323,8 +361,9 @@ void measurementManager::UpdateActors()
     vtkNew<vtkActor> actor;
     actor->SetMapper(mapper);
     actor->GetProperty()->SetColor(1.0, 0.85, 0.0);
+    actor->GetProperty()->LightingOff(); // flat color: the overlay layer has no lights
     actor->PickableOff();
-    renderer->AddActor(actor);
+    overlay->AddActor(actor);
     this->Actors.emplace_back(actor);
   };
 

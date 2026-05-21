@@ -17,6 +17,7 @@
 
 class vtkActor;
 class vtkCell;
+class vtkRenderer;
 
 namespace f3d
 {
@@ -134,6 +135,13 @@ private:
   void UpdateHoverActor();
 
   /**
+   * Return the layer-1 overlay renderer used to draw the measurement
+   * annotation on top of the model, creating it on first use. Shares the scene
+   * camera. Returns nullptr if there is no render window yet.
+   */
+  vtkRenderer* GetOverlayRenderer();
+
+  /**
    * Convert a model-space length to display units (identity when either unit
    * is unset/unknown).
    */
@@ -154,6 +162,7 @@ private:
 
   std::vector<vtkSmartPointer<vtkActor>> Actors;
   vtkSmartPointer<vtkActor> HoverActor;
+  vtkSmartPointer<vtkRenderer> OverlayRenderer;
 };
 }
 }
