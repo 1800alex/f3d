@@ -552,6 +552,12 @@ public:
   void AddNotification(
     const std::string& desc, const std::string& value, const std::string& bind, double duration);
 
+  /**
+   * Configure the measurement panel UI from the given state.
+   */
+  void ConfigureMeasurement(bool visible, const std::string& text,
+    const std::string& modelUnit, const std::string& displayUnit);
+
 private:
   vtkF3DRenderer();
   ~vtkF3DRenderer() override;

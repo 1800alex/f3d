@@ -77,6 +77,11 @@ private:
   void RenderMetaData() override;
 
   /**
+   * Render the measurement panel UI widget
+   */
+  void RenderMeasurement() override;
+
+  /**
    * Render the HDRI filename UI widget
    */
   void RenderHDRIFileName() override;
@@ -120,6 +125,12 @@ private:
    * Compute the width of a badge
    */
   float CalcBadgeWidth(const std::string& text);
+
+  /**
+   * Emit a `set <optionName> <value>` (or `reset <optionName>` for empty value)
+   * command to apply a unit change.
+   */
+  void EmitMeasurementUnitChange(const std::string& optionName, const std::string& value);
 };
 
 #endif

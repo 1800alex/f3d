@@ -868,6 +868,80 @@ void vtkF3DImguiActor::RenderMetaData()
 }
 
 //----------------------------------------------------------------------------
+void vtkF3DImguiActor::RenderMeasurement()
+{
+  const ImGuiViewport* viewport = ImGui::GetMainViewport();
+  constexpr float margin = F3DStyle::GetDefaultMargin();
+
+  static const char* units[] = { "", "mm", "cm", "m", "in", "ft" };
+
+  const auto unitIndex = [&](const std::string& u)
+  {
+    for (int i = 0; i < IM_ARRAYSIZE(units); ++i)
+    {
+      if (u == units[i])
+      {
+        return i;
+      }
+    }
+    return 0;
+  };
+
+  // Fixed width; height is auto via AlwaysAutoResize. We still pass an initial
+  // size to avoid the blank-first-frame issue on offscreen rendering.
+  const ImVec2 winSize(260.f, 120.f);
+  const ImVec2 winPos(
+    viewport->WorkSize.x - winSize.x - margin,
+    viewport->WorkSize.y - winSize.y - margin);
+
+  ::SetupNextWindow(winPos, winSize);
+
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.Colors[ImGuiCol_WindowBg] = ImVec4(
+    this->BackdropColor[0], this->BackdropColor[1], this->BackdropColor[2], this->BackdropOpacity);
+
+  ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
+    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove |
+    ImGuiWindowFlags_AlwaysAutoResize;
+
+  ImGui::Begin("Measurement", nullptr, flags);
+  ImGui::TextUnformatted(this->Measurement.c_str());
+  ImGui::Separator();
+
+  int modelIdx = unitIndex(this->MeasurementModelUnit);
+  if (ImGui::Combo("Model units", &modelIdx, units, IM_ARRAYSIZE(units)))
+  {
+    this->EmitMeasurementUnitChange("ui.measurement.model_unit", units[modelIdx]);
+  }
+
+  int displayIdx = unitIndex(this->MeasurementDisplayUnit);
+  if (ImGui::Combo("Display units", &displayIdx, units, IM_ARRAYSIZE(units)))
+  {
+    this->EmitMeasurementUnitChange("ui.measurement.display_unit", units[displayIdx]);
+  }
+
+  ImGui::End();
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DImguiActor::EmitMeasurementUnitChange(
+  const std::string& optionName, const std::string& value)
+{
+  std::string command;
+  if (value.empty())
+  {
+    // tokenizer cannot handle empty quoted strings as arguments; use reset instead
+    command = "reset " + optionName;
+  }
+  else
+  {
+    command = "set " + optionName + " " + value;
+  }
+  vtkOutputWindow::GetInstance()->InvokeEvent(
+    vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
+}
+
+//----------------------------------------------------------------------------
 void vtkF3DImguiActor::RenderHDRIFileName()
 {
   if (!this->HDRIFileName.empty())

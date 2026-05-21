@@ -123,6 +123,24 @@ public:
   void SetMetaData(const std::string& metadata);
 
   /**
+   * Set the measurement panel visibility
+   * False by default
+   */
+  void SetMeasurementVisibility(bool show);
+
+  /**
+   * Set the measurement result/prompt string
+   * Empty by default
+   */
+  void SetMeasurement(const std::string& measurement);
+
+  /**
+   * Set the measurement model/display unit strings (shown in the combo boxes)
+   * Empty by default
+   */
+  void SetMeasurementUnits(const std::string& modelUnit, const std::string& displayUnit);
+
+  /**
    * Set the cheatsheet visibility
    * False by default
    */
@@ -269,6 +287,13 @@ protected:
   }
 
   /**
+   * Render the measurement panel UI widget
+   */
+  virtual void RenderMeasurement()
+  {
+  }
+
+  /**
    * Render the HDRI filename UI widget
    */
   virtual void RenderHDRIFileName()
@@ -323,6 +348,11 @@ protected:
 
   bool MetaDataVisible = false;
   std::string MetaData = "";
+
+  bool MeasurementVisible = false;
+  std::string Measurement = "";
+  std::string MeasurementModelUnit = "";
+  std::string MeasurementDisplayUnit = "";
 
   bool SceneHierarchyVisible = false;
 

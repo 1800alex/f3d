@@ -40,7 +40,11 @@ void measurementManager::ToggleMeasurement()
   this->Active = !this->Active;
   if (!this->Active)
   {
-    this->Clear();
+    this->Clear(); // Clear() calls RefreshPanel() internally
+  }
+  else
+  {
+    this->RefreshPanel();
   }
 }
 
@@ -50,6 +54,7 @@ void measurementManager::Clear()
   this->Selection.clear();
   this->Result.reset();
   this->RemoveActors();
+  this->RefreshPanel();
 }
 
 //----------------------------------------------------------------------------
@@ -198,6 +203,19 @@ void measurementManager::UpdateActors()
   if (this->Result.has_value())
   {
     addLine(this->Result->ClosestA, this->Result->ClosestB, 0.1, 0.8, 1.0, 2.0);
+  }
+
+  this->RefreshPanel();
+}
+
+//----------------------------------------------------------------------------
+void measurementManager::RefreshPanel()
+{
+  vtkF3DRenderer* renderer = this->Window.GetRenderer();
+  if (renderer != nullptr)
+  {
+    renderer->ConfigureMeasurement(this->IsPanelVisible(), this->GetResultString(),
+      this->Options.ui.measurement.model_unit, this->Options.ui.measurement.display_unit);
   }
 }
 }

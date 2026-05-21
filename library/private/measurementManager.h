@@ -100,6 +100,11 @@ private:
    */
   void RemoveActors();
 
+  /**
+   * Push the current measurement state to the renderer's UI panel.
+   */
+  void RefreshPanel();
+
   options& Options;
   window_impl& Window;
   interactor_impl* Interactor = nullptr;
