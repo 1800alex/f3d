@@ -106,6 +106,12 @@ public:
    */
   void RefreshPanel();
 
+  /**
+   * Rebuild the 3D annotation and refresh the panel. Call after the axis
+   * option changes, since the axis affects the drawn geometry.
+   */
+  void RefreshMeasurement();
+
   measurementManager(const measurementManager&) = delete;
   void operator=(const measurementManager&) = delete;
 

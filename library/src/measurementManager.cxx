@@ -341,10 +341,25 @@ void measurementManager::UpdateActors()
     }
   }
 
-  // Connecting line between the two closest points.
+  // Connecting annotation between the two closest points.
   if (this->Result.has_value())
   {
-    addLine(this->Result->ClosestA, this->Result->ClosestB, 0.1, 0.8, 1.0, 2.0);
+    const std::string& axis = this->Options.ui.measurement.axis;
+    const int axisIdx = (axis == "x") ? 0 : (axis == "y") ? 1 : (axis == "z") ? 2 : -1;
+    if (axisIdx < 0)
+    {
+      // Free mode: straight line.
+      addLine(this->Result->ClosestA, this->Result->ClosestB, 0.1, 0.8, 1.0, 2.0);
+    }
+    else
+    {
+      // Axis mode: right-angle staircase, selected leg emphasized.
+      const std::array<std::array<double, 3>, 4> path =
+        ComputeAxisPath(this->Result->ClosestA, this->Result->ClosestB, axisIdx);
+      addLine(path[0], path[1], 0.1, 0.8, 1.0, 4.0); // selected leg: bright cyan, thick
+      addLine(path[1], path[2], 0.5, 0.5, 0.5, 1.5); // helper leg: dim grey
+      addLine(path[2], path[3], 0.5, 0.5, 0.5, 1.5); // helper leg: dim grey
+    }
   }
 
   this->RefreshPanel();
@@ -359,5 +374,11 @@ void measurementManager::RefreshPanel()
     renderer->ConfigureMeasurement(this->IsPanelVisible(), this->GetResultString(),
       this->Options.ui.measurement.model_unit, this->Options.ui.measurement.display_unit);
   }
+}
+
+//----------------------------------------------------------------------------
+void measurementManager::RefreshMeasurement()
+{
+  this->UpdateActors();
 }
 }
