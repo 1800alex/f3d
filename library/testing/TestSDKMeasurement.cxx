@@ -2,6 +2,10 @@
 
 #include "measurementTools.h"
 
+#include <vtkNew.h>
+#include <vtkPoints.h>
+#include <vtkTriangle.h>
+
 int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
   PseudoUnitTest test;
@@ -49,6 +53,36 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     MeasureObject e2{ Type::EDGE, { 0, 3, 0 }, { 2, 3, 0 } };
     const auto r = f3d::detail::ComputeDistance(e1, e2);
     test("edge-edge distance", r.Distance == approx(3.0));
+  }
+
+  // Build a triangle with vertices A(0,0,0) B(10,0,0) C(0,10,0).
+  {
+    vtkNew<vtkTriangle> tri;
+    tri->GetPoints()->SetPoint(0, 0.0, 0.0, 0.0);
+    tri->GetPoints()->SetPoint(1, 10.0, 0.0, 0.0);
+    tri->GetPoints()->SetPoint(2, 0.0, 10.0, 0.0);
+    tri->GetPointIds()->SetId(0, 0);
+    tri->GetPointIds()->SetId(1, 1);
+    tri->GetPointIds()->SetId(2, 2);
+
+    // A pick within snap tolerance of vertex B -> POINT at B.
+    {
+      const auto obj = f3d::detail::ResolvePickedObject({ 9.95, 0.02, 0.0 }, tri, 0.2);
+      test("resolve pick snaps to vertex",
+        obj.ObjType == f3d::detail::MeasureObject::Type::POINT &&
+          obj.P0 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 }));
+    }
+
+    // A pick near the middle of edge A-B (far from any vertex) -> EDGE A-B.
+    {
+      const auto obj = f3d::detail::ResolvePickedObject({ 5.0, 0.05, 0.0 }, tri, 0.2);
+      const bool isEdgeAB = obj.ObjType == f3d::detail::MeasureObject::Type::EDGE &&
+        ((obj.P0 == approx(std::array<double, 3>{ 0.0, 0.0, 0.0 }) &&
+           obj.P1 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 })) ||
+          (obj.P0 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 }) &&
+            obj.P1 == approx(std::array<double, 3>{ 0.0, 0.0, 0.0 })));
+      test("resolve pick snaps to nearest edge", isEdgeAB);
+    }
   }
 
   return test.result();

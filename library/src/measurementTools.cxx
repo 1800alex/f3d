@@ -1,10 +1,13 @@
 #include "measurementTools.h"
 
+#include <vtkCell.h>
 #include <vtkLine.h>
 #include <vtkMath.h>
+#include <vtkPoints.h>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 
 namespace
@@ -35,6 +38,65 @@ void ClosestPointOnSegment(
 
 namespace f3d::detail
 {
+//----------------------------------------------------------------------------
+MeasureObject ResolvePickedObject(
+  const std::array<double, 3>& worldPos, vtkCell* cell, double snapTol)
+{
+  MeasureObject obj{};
+  vtkPoints* pts = cell->GetPoints();
+  const vtkIdType nbPts = pts->GetNumberOfPoints();
+
+  // 1. Snap to the nearest vertex if within snapTol.
+  vtkIdType nearestVertex = -1;
+  double bestVertexDist2 = snapTol * snapTol;
+  for (vtkIdType i = 0; i < nbPts; ++i)
+  {
+    double p[3];
+    pts->GetPoint(i, p);
+    const double d2 = vtkMath::Distance2BetweenPoints(worldPos.data(), p);
+    if (d2 <= bestVertexDist2)
+    {
+      bestVertexDist2 = d2;
+      nearestVertex = i;
+    }
+  }
+  if (nearestVertex >= 0)
+  {
+    double p[3];
+    pts->GetPoint(nearestVertex, p);
+    obj.ObjType = MeasureObject::Type::POINT;
+    obj.P0 = { p[0], p[1], p[2] };
+    return obj;
+  }
+
+  // 2. Otherwise pick the cell edge nearest to worldPos.
+  vtkIdType bestEdge = 0;
+  double bestEdgeDist2 = std::numeric_limits<double>::max();
+  for (vtkIdType i = 0; i < nbPts; ++i)
+  {
+    double e0[3];
+    double e1[3];
+    pts->GetPoint(i, e0);
+    pts->GetPoint((i + 1) % nbPts, e1);
+    double closest[3];
+    ClosestPointOnSegment(worldPos.data(), e0, e1, closest);
+    const double d2 = vtkMath::Distance2BetweenPoints(worldPos.data(), closest);
+    if (d2 < bestEdgeDist2)
+    {
+      bestEdgeDist2 = d2;
+      bestEdge = i;
+    }
+  }
+  double e0[3];
+  double e1[3];
+  pts->GetPoint(bestEdge, e0);
+  pts->GetPoint((bestEdge + 1) % nbPts, e1);
+  obj.ObjType = MeasureObject::Type::EDGE;
+  obj.P0 = { e0[0], e0[1], e0[2] };
+  obj.P1 = { e1[0], e1[1], e1[2] };
+  return obj;
+}
+
 //----------------------------------------------------------------------------
 MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b)
 {
