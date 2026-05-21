@@ -933,9 +933,9 @@ void vtkF3DImguiActor::RenderMeasurement()
     ImGui::PopItemWidth();
   };
 
-  unitRow("Model is in", "The unit the loaded model's geometry is expressed in",
+  unitRow("Model", "The unit the loaded model's geometry is expressed in",
     "##modelunit", this->MeasurementModelUnit, "ui.measurement.model_unit");
-  unitRow("Display in", "The unit measurement results are converted to and displayed in",
+  unitRow("Display", "The unit measurement results are converted to and displayed in",
     "##displayunit", this->MeasurementDisplayUnit, "ui.measurement.display_unit");
 
   ImGui::End();
@@ -957,6 +957,13 @@ void vtkF3DImguiActor::EmitMeasurementUnitChange(
   }
   vtkOutputWindow::GetInstance()->InvokeEvent(
     vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
+
+  // The option is now set; refresh the panel so the displayed distance is
+  // recomputed with the new unit instead of staying stale until the next
+  // measurement-mode toggle.
+  std::string refresh = "update_measurement";
+  vtkOutputWindow::GetInstance()->InvokeEvent(
+    vtkF3DUserEvents::TriggerEvent, const_cast<char*>(refresh.c_str()));
 }
 
 //----------------------------------------------------------------------------

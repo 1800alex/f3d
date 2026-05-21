@@ -347,11 +347,19 @@ public:
       interaction[0] = std::toupper(interaction[0]);
     }
 
-    if (interaction == "Escape" && self->MeasurementManager.IsActive() &&
-      self->MeasurementManager.HasSelection())
+    if (interaction == "Escape" && self->MeasurementManager.IsActive())
     {
-      self->MeasurementManager.Clear();
-      self->Style->GetInteractor()->GetRenderWindow()->Render();
+      if (self->MeasurementManager.HasSelection())
+      {
+        // First Escape: clear the current measurement, stay in measurement mode.
+        self->MeasurementManager.Clear();
+        self->Style->GetInteractor()->GetRenderWindow()->Render();
+      }
+      else
+      {
+        // Escape with nothing selected: leave measurement mode.
+        self->Interactor.triggerCommand("toggle_measurement");
+      }
       return;
     }
 
@@ -1451,6 +1459,16 @@ interactor& interactor_impl::initCommands()
       this->requestRender();
     },
     command_documentation_t{ "toggle_measurement", "toggle measurement mode on/off" });
+
+  this->addCommand(
+    "update_measurement",
+    [&](const std::vector<std::string>&)
+    {
+      this->Internals->MeasurementManager.RefreshPanel();
+      this->requestRender();
+    },
+    command_documentation_t{ "update_measurement",
+      "refresh the measurement overlay panel after a unit change" });
 
   this->addCommand(
     "toggle_animation_backward",

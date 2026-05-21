@@ -94,6 +94,12 @@ public:
    */
   std::string GetResultString() const;
 
+  /**
+   * Push the current measurement state to the renderer's UI panel. Call after
+   * a measurement unit option changes so the displayed distance is recomputed.
+   */
+  void RefreshPanel();
+
   measurementManager(const measurementManager&) = delete;
   void operator=(const measurementManager&) = delete;
 
@@ -114,11 +120,6 @@ private:
    * when there is no hover preview).
    */
   void UpdateHoverActor();
-
-  /**
-   * Push the current measurement state to the renderer's UI panel.
-   */
-  void RefreshPanel();
 
   options& Options;
   window_impl& Window;
