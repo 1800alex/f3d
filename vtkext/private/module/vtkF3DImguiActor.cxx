@@ -910,6 +910,37 @@ void vtkF3DImguiActor::RenderMeasurement()
 
   ImGui::Begin("Measurement", nullptr, flags);
   ImGui::TextUnformatted(this->Measurement.c_str());
+
+  if (!this->MeasurementComponents.empty())
+  {
+    ImGui::TextUnformatted(this->MeasurementComponents.c_str());
+  }
+
+  ImGui::SeparatorText("Axis");
+  {
+    static const char* axisNames[] = { "free", "x", "y", "z" };
+    int axisIdx = 0;
+    for (int i = 0; i < IM_ARRAYSIZE(axisNames); ++i)
+    {
+      if (this->MeasurementAxis == axisNames[i])
+      {
+        axisIdx = i;
+      }
+    }
+    const int previous = axisIdx;
+    ImGui::RadioButton("Free", &axisIdx, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("X", &axisIdx, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("Y", &axisIdx, 2);
+    ImGui::SameLine();
+    ImGui::RadioButton("Z", &axisIdx, 3);
+    if (axisIdx != previous)
+    {
+      this->EmitMeasurementAxisChange(axisNames[axisIdx]);
+    }
+  }
+
   ImGui::SeparatorText("Units");
 
   // A labelled combo: a descriptive text label, then the dropdown on the same
@@ -954,6 +985,14 @@ void vtkF3DImguiActor::EmitMeasurementUnitChange(
   {
     command += " " + value;
   }
+  vtkOutputWindow::GetInstance()->InvokeEvent(
+    vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DImguiActor::EmitMeasurementAxisChange(const std::string& axis)
+{
+  std::string command = "set_measurement_axis " + axis;
   vtkOutputWindow::GetInstance()->InvokeEvent(
     vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
 }

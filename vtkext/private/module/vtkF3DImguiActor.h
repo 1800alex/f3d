@@ -131,6 +131,11 @@ private:
    * `which` is "model" or "display"; an empty `value` means unitless.
    */
   void EmitMeasurementUnitChange(const std::string& which, const std::string& value);
+
+  /**
+   * Emit a `set_measurement_axis` command. `axis` is "free", "x", "y" or "z".
+   */
+  void EmitMeasurementAxisChange(const std::string& axis);
 };
 
 #endif
