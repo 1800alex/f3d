@@ -127,10 +127,10 @@ private:
   float CalcBadgeWidth(const std::string& text);
 
   /**
-   * Emit a `set <optionName> <value>` (or `reset <optionName>` for empty value)
-   * command to apply a unit change.
+   * Emit a `set_measurement_unit` command applying a unit change.
+   * `which` is "model" or "display"; an empty `value` means unitless.
    */
-  void EmitMeasurementUnitChange(const std::string& optionName, const std::string& value);
+  void EmitMeasurementUnitChange(const std::string& which, const std::string& value);
 };
 
 #endif

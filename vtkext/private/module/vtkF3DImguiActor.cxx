@@ -916,7 +916,7 @@ void vtkF3DImguiActor::RenderMeasurement()
   // line at a fixed offset so the two rows align. The combo uses a hidden
   // ("##") id so only the descriptive label is shown.
   const auto unitRow = [&](const char* label, const char* tooltip, const char* comboId,
-                         const std::string& current, const char* optionName)
+                         const std::string& current, const char* which)
   {
     ImGui::TextUnformatted(label);
     if (ImGui::IsItemHovered())
@@ -928,42 +928,34 @@ void vtkF3DImguiActor::RenderMeasurement()
     int idx = unitIndex(current);
     if (ImGui::Combo(comboId, &idx, unitLabels, IM_ARRAYSIZE(unitLabels)))
     {
-      this->EmitMeasurementUnitChange(optionName, units[idx]);
+      this->EmitMeasurementUnitChange(which, units[idx]);
     }
     ImGui::PopItemWidth();
   };
 
   unitRow("Model", "The unit the loaded model's geometry is expressed in",
-    "##modelunit", this->MeasurementModelUnit, "ui.measurement.model_unit");
+    "##modelunit", this->MeasurementModelUnit, "model");
   unitRow("Display", "The unit measurement results are converted to and displayed in",
-    "##displayunit", this->MeasurementDisplayUnit, "ui.measurement.display_unit");
+    "##displayunit", this->MeasurementDisplayUnit, "display");
 
   ImGui::End();
 }
 
 //----------------------------------------------------------------------------
 void vtkF3DImguiActor::EmitMeasurementUnitChange(
-  const std::string& optionName, const std::string& value)
+  const std::string& which, const std::string& value)
 {
-  std::string command;
-  if (value.empty())
+  // A single command sets the option and refreshes the panel. Emitting two
+  // separate commands would not work: the command buffer holds only one, so
+  // the second would overwrite the first. An empty value (unitless) is passed
+  // by omitting the unit argument.
+  std::string command = "set_measurement_unit " + which;
+  if (!value.empty())
   {
-    // tokenizer cannot handle empty quoted strings as arguments; use reset instead
-    command = "reset " + optionName;
-  }
-  else
-  {
-    command = "set " + optionName + " " + value;
+    command += " " + value;
   }
   vtkOutputWindow::GetInstance()->InvokeEvent(
     vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
-
-  // The option is now set; refresh the panel so the displayed distance is
-  // recomputed with the new unit instead of staying stale until the next
-  // measurement-mode toggle.
-  std::string refresh = "update_measurement";
-  vtkOutputWindow::GetInstance()->InvokeEvent(
-    vtkF3DUserEvents::TriggerEvent, const_cast<char*>(refresh.c_str()));
 }
 
 //----------------------------------------------------------------------------

@@ -1461,14 +1461,24 @@ interactor& interactor_impl::initCommands()
     command_documentation_t{ "toggle_measurement", "toggle measurement mode on/off" });
 
   this->addCommand(
-    "update_measurement",
-    [&](const std::vector<std::string>&)
+    "set_measurement_unit",
+    [&](const std::vector<std::string>& args)
     {
+      // args: <model|display> [unit]; an omitted unit means unitless.
+      if (args.empty())
+      {
+        return;
+      }
+      const std::string optionName = (args[0] == "display")
+        ? "ui.measurement.display_unit"
+        : "ui.measurement.model_unit";
+      const std::string unit = args.size() >= 2 ? args[1] : std::string();
+      this->Internals->Options.setAsString(optionName, unit);
       this->Internals->MeasurementManager.RefreshPanel();
       this->requestRender();
     },
-    command_documentation_t{ "update_measurement",
-      "refresh the measurement overlay panel after a unit change" });
+    command_documentation_t{ "set_measurement_unit",
+      "set a measurement unit (model|display) and refresh the panel" });
 
   this->addCommand(
     "toggle_animation_backward",
