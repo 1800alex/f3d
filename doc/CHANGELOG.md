@@ -4,6 +4,7 @@
 
 For F3D users:
 
+- Added a measurement mode (toggle with `Shift+M`) to measure distances between mesh points and edges, with unit conversion.
 - Created an Android version
 - Moved macOS binary package to macOS 14 framework.
 - Added support for writing multiple images when using `--output` with a file containing animations

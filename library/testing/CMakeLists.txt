@@ -45,6 +45,7 @@ if(F3D_MODULE_UI)
     TestSDKNotification.cxx
     TestSDKStartInteractor.cxx
     TestSDKTriggerInteractions.cxx
+    TestSDKMeasurementInteraction.cxx
     )
 
   # Needs https://gitlab.kitware.com/vtk/vtk/-/merge_requests/12489
