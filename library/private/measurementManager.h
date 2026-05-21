@@ -95,6 +95,12 @@ public:
   std::string GetResultString() const;
 
   /**
+   * The per-axis breakdown ("X: .. Y: .. Z: .. <unit>"), converted to display
+   * units. Empty until two objects are selected.
+   */
+  std::string GetComponentsString() const;
+
+  /**
    * Push the current measurement state to the renderer's UI panel. Call after
    * a measurement unit option changes so the displayed distance is recomputed.
    */
@@ -120,6 +126,17 @@ private:
    * when there is no hover preview).
    */
   void UpdateHoverActor();
+
+  /**
+   * Convert a model-space length to display units (identity when either unit
+   * is unset/unknown).
+   */
+  double ConvertToDisplay(double modelValue) const;
+
+  /**
+   * The display-unit suffix (" mm" etc.), or empty when no conversion applies.
+   */
+  std::string DisplaySuffix() const;
 
   options& Options;
   window_impl& Window;

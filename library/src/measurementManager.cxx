@@ -132,6 +132,30 @@ bool measurementManager::ClearHover()
 }
 
 //----------------------------------------------------------------------------
+double measurementManager::ConvertToDisplay(double modelValue) const
+{
+  const std::optional<double> modelF = UnitToMeters(this->Options.ui.measurement.model_unit);
+  const std::optional<double> displayF = UnitToMeters(this->Options.ui.measurement.display_unit);
+  if (modelF.has_value() && displayF.has_value())
+  {
+    return modelValue * modelF.value() / displayF.value();
+  }
+  return modelValue;
+}
+
+//----------------------------------------------------------------------------
+std::string measurementManager::DisplaySuffix() const
+{
+  const std::optional<double> modelF = UnitToMeters(this->Options.ui.measurement.model_unit);
+  const std::optional<double> displayF = UnitToMeters(this->Options.ui.measurement.display_unit);
+  if (modelF.has_value() && displayF.has_value())
+  {
+    return " " + this->Options.ui.measurement.display_unit;
+  }
+  return "";
+}
+
+//----------------------------------------------------------------------------
 std::string measurementManager::GetResultString() const
 {
   if (this->Selection.empty())
@@ -143,20 +167,45 @@ std::string measurementManager::GetResultString() const
     return "Select second object";
   }
 
-  // Both selected: format the distance, applying unit conversion if both
-  // model and display units are known.
-  double value = this->Result->Distance;
-  std::string suffix;
-  const std::optional<double> modelF = UnitToMeters(this->Options.ui.measurement.model_unit);
-  const std::optional<double> displayF = UnitToMeters(this->Options.ui.measurement.display_unit);
-  if (modelF.has_value() && displayF.has_value())
-  {
-    value = value * modelF.value() / displayF.value();
-    suffix = " " + this->Options.ui.measurement.display_unit;
-  }
+  const std::array<double, 3>& a = this->Result->ClosestA;
+  const std::array<double, 3>& b = this->Result->ClosestB;
+  const std::string& axis = this->Options.ui.measurement.axis;
 
   std::ostringstream oss;
-  oss << std::fixed << std::setprecision(3) << "Distance: " << value << suffix;
+  oss << std::fixed << std::setprecision(3);
+  if (axis == "x")
+  {
+    oss << "X: " << this->ConvertToDisplay(std::fabs(b[0] - a[0])) << this->DisplaySuffix();
+  }
+  else if (axis == "y")
+  {
+    oss << "Y: " << this->ConvertToDisplay(std::fabs(b[1] - a[1])) << this->DisplaySuffix();
+  }
+  else if (axis == "z")
+  {
+    oss << "Z: " << this->ConvertToDisplay(std::fabs(b[2] - a[2])) << this->DisplaySuffix();
+  }
+  else
+  {
+    oss << "Distance: " << this->ConvertToDisplay(this->Result->Distance) << this->DisplaySuffix();
+  }
+  return oss.str();
+}
+
+//----------------------------------------------------------------------------
+std::string measurementManager::GetComponentsString() const
+{
+  if (this->Selection.size() < 2 || !this->Result.has_value())
+  {
+    return "";
+  }
+  const std::array<double, 3>& a = this->Result->ClosestA;
+  const std::array<double, 3>& b = this->Result->ClosestB;
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(3);
+  oss << "X: " << this->ConvertToDisplay(std::fabs(b[0] - a[0])) << "   "
+      << "Y: " << this->ConvertToDisplay(std::fabs(b[1] - a[1])) << "   "
+      << "Z: " << this->ConvertToDisplay(std::fabs(b[2] - a[2])) << this->DisplaySuffix();
   return oss.str();
 }
 
