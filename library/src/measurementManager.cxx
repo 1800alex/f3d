@@ -4,7 +4,6 @@
 #include "window_impl.h"
 
 #include <vtkActor.h>
-#include <vtkCell.h>
 #include <vtkCellArray.h>
 #include <vtkDataSet.h>
 #include <vtkF3DRenderer.h>

@@ -49,10 +49,10 @@ public:
   }
 
   /**
-   * Resolve a pick (world position + picked dataset/cell) into a point or edge
-   * and advance the two-step selection. A null dataset or invalid cellId is
-   * ignored. The third pick after a completed measurement discards it and
-   * starts fresh.
+   * Resolve a pick (world position + picked dataset/cell) into a point, edge,
+   * or face and advance the two-step selection. A null dataset or invalid
+   * cellId is ignored. The third pick after a completed measurement discards
+   * it and starts fresh.
    */
   void HandlePick(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId);
 

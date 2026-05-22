@@ -22,7 +22,6 @@
 #include "vtkF3DUserEvents.h"
 
 #include <vtkCallbackCommand.h>
-#include <vtkCell.h>
 #include <vtkCellPicker.h>
 #include <vtkDataSet.h>
 #include <vtkGenericRenderWindowInteractor.h>

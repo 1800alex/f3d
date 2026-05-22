@@ -71,8 +71,9 @@ MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b);
 /**
  * Resolve a pick into a MeasureObject. worldPos is the picked world position;
  * dataset is the picked mesh and cellId the picked triangle. A pick within
- * snapTol of a triangle vertex resolves to a POINT; otherwise it resolves to
- * the nearest EDGE of the triangle.
+ * snapTol of a triangle vertex resolves to a POINT; within snapTol of a
+ * triangle edge resolves to that EDGE; otherwise it resolves to a FACE (the
+ * coplanar region around the picked triangle, measured at its centroid).
  */
 MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
   vtkDataSet* dataset, vtkIdType cellId, double snapTol);
