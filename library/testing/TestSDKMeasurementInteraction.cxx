@@ -50,5 +50,14 @@ int TestSDKMeasurementInteraction(int argc, char* argv[])
   inter.triggerCommand("set_measurement_axis free");
   eng.getWindow().render();
 
+  // A click toward the centre of the model is likely to land in a triangle
+  // interior and resolve to a face; it must not crash.
+  inter.triggerMousePosition(150, 150);
+  inter.triggerMouseButton(
+    f3d::interactor::InputAction::PRESS, f3d::interactor::MouseButton::LEFT);
+  inter.triggerMouseButton(
+    f3d::interactor::InputAction::RELEASE, f3d::interactor::MouseButton::LEFT);
+  eng.getWindow().render();
+
   return EXIT_SUCCESS;
 }

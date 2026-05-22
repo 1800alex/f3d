@@ -6,6 +6,7 @@ For F3D users:
 
 - Added a measurement mode (toggle with `Shift+M`) to measure distances between mesh points and edges, with unit conversion.
 - Measurement mode can now be constrained to a model axis (X/Y/Z), showing the per-axis breakdown and a right-angle annotation.
+- Measurement mode can now select a whole coplanar face by clicking its interior, measuring from the face centroid.
 - Created an Android version
 - Moved macOS binary package to macOS 14 framework.
 - Added support for writing multiple images when using `--output` with a file containing animations

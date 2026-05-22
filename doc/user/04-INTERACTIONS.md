@@ -127,6 +127,10 @@ click selects either a mesh **vertex** (when clicking near one) or a mesh
 **edge**. The distance is drawn as a line in the 3D scene and shown in a panel
 in the bottom-right corner.
 
+Clicking in the interior of a triangle (away from any vertex or edge) selects
+the whole coplanar **face** around it; the face's centroid is used as the
+measured point and the detected region is highlighted.
+
 The panel has two combo boxes: **Model units** (the unit the model geometry is
 in) and **Display units** (the unit to show results in). Supported units are
 `mm`, `cm`, `m`, `in` and `ft`; leaving a combo blank means unitless and
