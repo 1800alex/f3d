@@ -5,6 +5,7 @@
 
 #include <vtkActor.h>
 #include <vtkCell.h>
+#include <vtkDataSet.h>
 #include <vtkF3DRenderer.h>
 #include <vtkLineSource.h>
 #include <vtkNew.h>
@@ -21,10 +22,10 @@
 namespace
 {
 // Snap tolerance for pick resolution, scaled to the picked cell's size.
-double SnapToleranceForCell(vtkCell* cell)
+double SnapToleranceForCell(vtkDataSet* dataset, vtkIdType cellId)
 {
   double bounds[6];
-  cell->GetBounds(bounds);
+  dataset->GetCellBounds(cellId, bounds);
   const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
     (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
     (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
@@ -69,9 +70,9 @@ void measurementManager::Clear()
 
 //----------------------------------------------------------------------------
 void measurementManager::HandlePick(
-  const std::array<double, 3>& worldPos, vtkCell* cell)
+  const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId)
 {
-  if (!this->Active || cell == nullptr)
+  if (!this->Active || dataset == nullptr || cellId < 0)
   {
     return;
   }
@@ -84,7 +85,7 @@ void measurementManager::HandlePick(
   }
 
   this->Selection.push_back(
-    ResolvePickedObject(worldPos, cell, SnapToleranceForCell(cell)));
+    ResolvePickedObject(worldPos, dataset, cellId, SnapToleranceForCell(dataset, cellId)));
 
   if (this->Selection.size() == 2)
   {
@@ -99,15 +100,15 @@ void measurementManager::HandlePick(
 
 //----------------------------------------------------------------------------
 bool measurementManager::HandleHover(
-  const std::array<double, 3>& worldPos, vtkCell* cell)
+  const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId)
 {
-  if (!this->Active || cell == nullptr)
+  if (!this->Active || dataset == nullptr || cellId < 0)
   {
     return this->ClearHover();
   }
 
   const MeasureObject obj =
-    ResolvePickedObject(worldPos, cell, SnapToleranceForCell(cell));
+    ResolvePickedObject(worldPos, dataset, cellId, SnapToleranceForCell(dataset, cellId));
 
   // Skip the rebuild (and the render it triggers) when hovering the same object.
   if (this->HoverObject.has_value() && this->HoverObject->ObjType == obj.ObjType &&

@@ -1,6 +1,7 @@
 #include "measurementTools.h"
 
 #include <vtkCell.h>
+#include <vtkDataSet.h>
 #include <vtkLine.h>
 #include <vtkMath.h>
 #include <vtkPoints.h>
@@ -39,10 +40,11 @@ void ClosestPointOnSegment(
 namespace f3d::detail
 {
 //----------------------------------------------------------------------------
-MeasureObject ResolvePickedObject(
-  const std::array<double, 3>& worldPos, vtkCell* cell, double snapTol)
+MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
+  vtkDataSet* dataset, vtkIdType cellId, double snapTol)
 {
   MeasureObject obj{};
+  vtkCell* cell = dataset->GetCell(cellId);
   vtkPoints* pts = cell->GetPoints();
   const vtkIdType nbPts = pts->GetNumberOfPoints();
 

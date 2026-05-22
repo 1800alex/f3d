@@ -16,7 +16,7 @@
 #include <vtkSmartPointer.h>
 
 class vtkActor;
-class vtkCell;
+class vtkDataSet;
 class vtkRenderer;
 
 namespace f3d
@@ -49,11 +49,12 @@ public:
   }
 
   /**
-   * Resolve a pick (world position + picked cell) into a point or edge and
-   * advance the two-step selection. A null cell is ignored. The third pick
-   * after a completed measurement discards it and starts fresh.
+   * Resolve a pick (world position + picked dataset/cell) into a point or edge
+   * and advance the two-step selection. A null dataset or invalid cellId is
+   * ignored. The third pick after a completed measurement discards it and
+   * starts fresh.
    */
-  void HandlePick(const std::array<double, 3>& worldPos, vtkCell* cell);
+  void HandlePick(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId);
 
   /**
    * Clear the current selection, measurement, hover preview and 3D actors.
@@ -62,10 +63,10 @@ public:
 
   /**
    * Resolve a pick under the cursor into a preview ("hover") highlight of the
-   * object that would be selected if clicked. A null cell clears the preview.
-   * Returns true if the preview changed and a render is needed.
+   * object that would be selected if clicked. A null dataset or invalid cellId
+   * clears the preview. Returns true if the preview changed and a render is needed.
    */
-  bool HandleHover(const std::array<double, 3>& worldPos, vtkCell* cell);
+  bool HandleHover(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId);
 
   /**
    * Remove the hover preview highlight, if any.

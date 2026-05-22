@@ -410,16 +410,11 @@ public:
     {
       double pickPos[3];
       self->CellPicker->GetPickPosition(pickPos);
-      vtkCell* cell = nullptr;
       vtkDataSet* ds = self->CellPicker->GetDataSet();
       const vtkIdType cellId = self->CellPicker->GetCellId();
       if (ds != nullptr && cellId >= 0)
       {
-        cell = ds->GetCell(cellId);
-      }
-      if (cell != nullptr)
-      {
-        self->MeasurementManager.HandlePick({ pickPos[0], pickPos[1], pickPos[2] }, cell);
+        self->MeasurementManager.HandlePick({ pickPos[0], pickPos[1], pickPos[2] }, ds, cellId);
         self->Style->GetInteractor()->GetRenderWindow()->Render();
         picked = true;
       }
@@ -448,21 +443,18 @@ public:
     vtkRenderer* renderer =
       self->VTKInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
 
-    vtkCell* cell = nullptr;
+    vtkDataSet* ds = nullptr;
+    vtkIdType cellId = -1;
     double pickPos[3] = { 0.0, 0.0, 0.0 };
     if (self->CellPicker->Pick(pos[0], pos[1], 0, renderer))
     {
       self->CellPicker->GetPickPosition(pickPos);
-      vtkDataSet* ds = self->CellPicker->GetDataSet();
-      const vtkIdType cellId = self->CellPicker->GetCellId();
-      if (ds != nullptr && cellId >= 0)
-      {
-        cell = ds->GetCell(cellId);
-      }
+      ds = self->CellPicker->GetDataSet();
+      cellId = self->CellPicker->GetCellId();
     }
 
-    const bool changed = (cell != nullptr)
-      ? self->MeasurementManager.HandleHover({ pickPos[0], pickPos[1], pickPos[2] }, cell)
+    const bool changed = (ds != nullptr && cellId >= 0)
+      ? self->MeasurementManager.HandleHover({ pickPos[0], pickPos[1], pickPos[2] }, ds, cellId)
       : self->MeasurementManager.ClearHover();
 
     if (changed)

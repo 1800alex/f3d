@@ -2,8 +2,10 @@
 
 #include "measurementTools.h"
 
+#include <vtkCellArray.h>
 #include <vtkNew.h>
 #include <vtkPoints.h>
+#include <vtkPolyData.h>
 #include <vtkTriangle.h>
 
 #include <cmath>
@@ -58,19 +60,23 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     test("edge-edge distance", r.Distance == approx(3.0));
   }
 
-  // Build a triangle with vertices A(0,0,0) B(10,0,0) C(0,10,0).
+  // Build a one-triangle vtkPolyData: A(0,0,0) B(10,0,0) C(0,10,0).
   {
-    vtkNew<vtkTriangle> tri;
-    tri->GetPoints()->SetPoint(0, 0.0, 0.0, 0.0);
-    tri->GetPoints()->SetPoint(1, 10.0, 0.0, 0.0);
-    tri->GetPoints()->SetPoint(2, 0.0, 10.0, 0.0);
-    tri->GetPointIds()->SetId(0, 0);
-    tri->GetPointIds()->SetId(1, 1);
-    tri->GetPointIds()->SetId(2, 2);
+    vtkNew<vtkPoints> points;
+    points->InsertNextPoint(0.0, 0.0, 0.0);
+    points->InsertNextPoint(10.0, 0.0, 0.0);
+    points->InsertNextPoint(0.0, 10.0, 0.0);
+    vtkNew<vtkCellArray> polys;
+    const vtkIdType triangle[3] = { 0, 1, 2 };
+    polys->InsertNextCell(3, triangle);
+    vtkNew<vtkPolyData> mesh;
+    mesh->SetPoints(points);
+    mesh->SetPolys(polys);
+    mesh->BuildLinks();
 
     // A pick within snap tolerance of vertex B -> POINT at B.
     {
-      const auto obj = f3d::detail::ResolvePickedObject({ 9.95, 0.02, 0.0 }, tri, 0.2);
+      const auto obj = f3d::detail::ResolvePickedObject({ 9.95, 0.02, 0.0 }, mesh, 0, 0.2);
       test("resolve pick snaps to vertex",
         obj.ObjType == f3d::detail::MeasureObject::Type::POINT &&
           obj.P0 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 }));
@@ -78,7 +84,7 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // A pick near the middle of edge A-B (far from any vertex) -> EDGE A-B.
     {
-      const auto obj = f3d::detail::ResolvePickedObject({ 5.0, 0.05, 0.0 }, tri, 0.2);
+      const auto obj = f3d::detail::ResolvePickedObject({ 5.0, 0.05, 0.0 }, mesh, 0, 0.2);
       const bool isEdgeAB = obj.ObjType == f3d::detail::MeasureObject::Type::EDGE &&
         ((obj.P0 == approx(std::array<double, 3>{ 0.0, 0.0, 0.0 }) &&
            obj.P1 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 })) ||

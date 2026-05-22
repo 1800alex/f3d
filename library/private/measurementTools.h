@@ -14,7 +14,9 @@
 #include <string>
 #include <vector>
 
-class vtkCell;
+#include <vtkType.h>
+
+class vtkDataSet;
 
 namespace f3d
 {
@@ -67,13 +69,13 @@ std::optional<double> UnitToMeters(const std::string& unit);
 MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b);
 
 /**
- * Resolve a pick into a MeasureObject. worldPos is the picked world position,
- * cell is the picked triangle (must not be null). If worldPos is within snapTol
- * of one of the cell's points, returns a POINT at that vertex; otherwise returns
- * the EDGE of the cell nearest to worldPos.
+ * Resolve a pick into a MeasureObject. worldPos is the picked world position;
+ * dataset is the picked mesh and cellId the picked triangle. A pick within
+ * snapTol of a triangle vertex resolves to a POINT; otherwise it resolves to
+ * the nearest EDGE of the triangle.
  */
-MeasureObject ResolvePickedObject(
-  const std::array<double, 3>& worldPos, vtkCell* cell, double snapTol);
+MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
+  vtkDataSet* dataset, vtkIdType cellId, double snapTol);
 
 /**
  * Return the 4 points of the right-angle "staircase" path from a to b for the
