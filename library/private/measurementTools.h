@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 class vtkCell;
 
@@ -20,19 +21,24 @@ namespace f3d
 namespace detail
 {
 /**
- * A selectable object: either a single point or a finite edge segment.
- * For POINT, only P0 is meaningful.
+ * A selectable object: a single point, a finite edge segment, or a face.
+ * For POINT and FACE, P0 is the measurable point (the vertex / the face
+ * centroid). For EDGE, P0 and P1 are the endpoints. FacePoints holds the
+ * region's triangle vertices (three consecutive entries per triangle) for
+ * highlighting; it is empty for POINT and EDGE.
  */
 struct MeasureObject
 {
   enum class Type : std::uint8_t
   {
     POINT,
-    EDGE
+    EDGE,
+    FACE
   };
   Type ObjType;
   std::array<double, 3> P0;
   std::array<double, 3> P1;
+  std::vector<std::array<double, 3>> FacePoints;
 };
 
 /**

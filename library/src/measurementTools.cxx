@@ -98,9 +98,22 @@ MeasureObject ResolvePickedObject(
 }
 
 //----------------------------------------------------------------------------
-MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b)
+MeasureResult ComputeDistance(const MeasureObject& aIn, const MeasureObject& bIn)
 {
   using Type = MeasureObject::Type;
+
+  // A FACE measures from its centroid (P0), identically to a POINT.
+  MeasureObject a = aIn;
+  MeasureObject b = bIn;
+  if (a.ObjType == Type::FACE)
+  {
+    a.ObjType = Type::POINT;
+  }
+  if (b.ObjType == Type::FACE)
+  {
+    b.ObjType = Type::POINT;
+  }
+
   MeasureResult result{};
 
   if (a.ObjType == Type::POINT && b.ObjType == Type::POINT)

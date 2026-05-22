@@ -136,5 +136,18 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     }
   }
 
+  // A FACE measures from its centroid (P0), exactly like a POINT.
+  {
+    using f3d::detail::MeasureObject;
+    MeasureObject face{};
+    face.ObjType = MeasureObject::Type::FACE;
+    face.P0 = { 0.0, 0.0, 0.0 };
+    MeasureObject point{};
+    point.ObjType = MeasureObject::Type::POINT;
+    point.P0 = { 3.0, 4.0, 0.0 };
+    const auto r = f3d::detail::ComputeDistance(face, point);
+    test("face-point distance uses face centroid", r.Distance == approx(5.0));
+  }
+
   return test.result();
 }
