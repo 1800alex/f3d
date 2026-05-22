@@ -2,14 +2,20 @@
 
 #include <vtkCell.h>
 #include <vtkDataSet.h>
+#include <vtkIdList.h>
 #include <vtkLine.h>
 #include <vtkMath.h>
+#include <vtkNew.h>
 #include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkTriangle.h>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <map>
+#include <queue>
+#include <set>
 
 namespace
 {
@@ -34,6 +40,79 @@ void ClosestPointOnSegment(
   out[0] = s0[0] + t * seg[0];
   out[1] = s0[1] + t * seg[1];
   out[2] = s0[2] + t * seg[2];
+}
+
+// Unit normal of triangle `cellId` of `mesh`, written into `normal`.
+void TriangleNormal(vtkPolyData* mesh, vtkIdType cellId, double normal[3])
+{
+  vtkNew<vtkIdList> ptIds;
+  mesh->GetCellPoints(cellId, ptIds);
+  double p0[3];
+  double p1[3];
+  double p2[3];
+  mesh->GetPoint(ptIds->GetId(0), p0);
+  mesh->GetPoint(ptIds->GetId(1), p1);
+  mesh->GetPoint(ptIds->GetId(2), p2);
+  vtkTriangle::ComputeNormal(p0, p1, p2, normal);
+}
+
+// Breadth-first set of triangles coplanar with `seedCell` (normals within
+// `angleToleranceDeg` of the seed triangle's normal), edge-connected. Bounded
+// to `maxTriangles` to keep the worst case cheap on huge flat faces.
+std::vector<vtkIdType> GrowCoplanarRegion(
+  vtkPolyData* mesh, vtkIdType seedCell, double angleToleranceDeg, std::size_t maxTriangles)
+{
+  std::vector<vtkIdType> region;
+  if (mesh->GetCellType(seedCell) != VTK_TRIANGLE)
+  {
+    return region;
+  }
+  mesh->BuildLinks(); // idempotent; required for GetCellNeighbors
+
+  double seedNormal[3];
+  TriangleNormal(mesh, seedCell, seedNormal);
+  const double cosTol = std::cos(vtkMath::RadiansFromDegrees(angleToleranceDeg));
+
+  std::set<vtkIdType> visited{ seedCell };
+  std::queue<vtkIdType> frontier;
+  frontier.push(seedCell);
+  while (!frontier.empty() && region.size() < maxTriangles)
+  {
+    const vtkIdType current = frontier.front();
+    frontier.pop();
+    region.push_back(current);
+
+    vtkNew<vtkIdList> cellPts;
+    mesh->GetCellPoints(current, cellPts);
+    if (cellPts->GetNumberOfIds() != 3)
+    {
+      continue;
+    }
+    for (int e = 0; e < 3; ++e)
+    {
+      vtkNew<vtkIdList> edge;
+      edge->InsertNextId(cellPts->GetId(e));
+      edge->InsertNextId(cellPts->GetId((e + 1) % 3));
+      vtkNew<vtkIdList> neighbors;
+      mesh->GetCellNeighbors(current, edge, neighbors);
+      for (vtkIdType n = 0; n < neighbors->GetNumberOfIds(); ++n)
+      {
+        const vtkIdType nb = neighbors->GetId(n);
+        if (visited.count(nb) != 0 || mesh->GetCellType(nb) != VTK_TRIANGLE)
+        {
+          continue;
+        }
+        double nbNormal[3];
+        TriangleNormal(mesh, nb, nbNormal);
+        if (vtkMath::Dot(seedNormal, nbNormal) >= cosTol)
+        {
+          visited.insert(nb);
+          frontier.push(nb);
+        }
+      }
+    }
+  }
+  return region;
 }
 }
 
@@ -89,13 +168,74 @@ MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
       bestEdge = i;
     }
   }
-  double e0[3];
-  double e1[3];
-  pts->GetPoint(bestEdge, e0);
-  pts->GetPoint((bestEdge + 1) % nbPts, e1);
-  obj.ObjType = MeasureObject::Type::EDGE;
-  obj.P0 = { e0[0], e0[1], e0[2] };
-  obj.P1 = { e1[0], e1[1], e1[2] };
+  // 2b. If the nearest edge is within snapTol, it is an EDGE pick.
+  if (bestEdgeDist2 <= snapTol * snapTol)
+  {
+    double e0[3];
+    double e1[3];
+    pts->GetPoint(bestEdge, e0);
+    pts->GetPoint((bestEdge + 1) % nbPts, e1);
+    obj.ObjType = MeasureObject::Type::EDGE;
+    obj.P0 = { e0[0], e0[1], e0[2] };
+    obj.P1 = { e1[0], e1[1], e1[2] };
+    return obj;
+  }
+
+  // 3. Otherwise it is a FACE: region-grow coplanar triangles around the
+  //    picked triangle and measure at the area-weighted centroid.
+  std::vector<vtkIdType> region;
+  vtkPolyData* mesh = vtkPolyData::SafeDownCast(dataset);
+  if (mesh != nullptr)
+  {
+    region = GrowCoplanarRegion(mesh, cellId, 15.0, 5000);
+  }
+  if (region.empty())
+  {
+    region.push_back(cellId); // fallback: the picked triangle alone
+  }
+
+  double weightedCentroid[3] = { 0.0, 0.0, 0.0 };
+  double totalArea = 0.0;
+  double vertexSum[3] = { 0.0, 0.0, 0.0 };
+  int vertexCount = 0;
+  obj.FacePoints.clear();
+  for (const vtkIdType tri : region)
+  {
+    vtkNew<vtkIdList> triPts;
+    dataset->GetCellPoints(tri, triPts);
+    if (triPts->GetNumberOfIds() != 3)
+    {
+      continue;
+    }
+    double p[3][3];
+    for (int k = 0; k < 3; ++k)
+    {
+      dataset->GetPoint(triPts->GetId(k), p[k]);
+      obj.FacePoints.push_back({ p[k][0], p[k][1], p[k][2] });
+      vertexSum[0] += p[k][0];
+      vertexSum[1] += p[k][1];
+      vertexSum[2] += p[k][2];
+      ++vertexCount;
+    }
+    const double area = vtkTriangle::TriangleArea(p[0], p[1], p[2]);
+    totalArea += area;
+    for (int axis = 0; axis < 3; ++axis)
+    {
+      weightedCentroid[axis] += area * (p[0][axis] + p[1][axis] + p[2][axis]) / 3.0;
+    }
+  }
+
+  obj.ObjType = MeasureObject::Type::FACE;
+  if (totalArea > 0.0)
+  {
+    obj.P0 = { weightedCentroid[0] / totalArea, weightedCentroid[1] / totalArea,
+      weightedCentroid[2] / totalArea };
+  }
+  else if (vertexCount > 0)
+  {
+    obj.P0 = { vertexSum[0] / vertexCount, vertexSum[1] / vertexCount,
+      vertexSum[2] / vertexCount };
+  }
   return obj;
 }
 

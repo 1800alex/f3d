@@ -155,5 +155,50 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     test("face-point distance uses face centroid", r.Distance == approx(5.0));
   }
 
+  // Two coplanar triangles in z=0 forming the unit square [0,1]x[0,1], plus a
+  // third triangle that shares edge 1-2 with the square but is tilted steeply
+  // up out of the z=0 plane.
+  // Points: 0(0,0,0) 1(1,0,0) 2(1,1,0) 3(0,1,0) 4(2,1,2).
+  {
+    vtkNew<vtkPoints> points;
+    points->InsertNextPoint(0.0, 0.0, 0.0);
+    points->InsertNextPoint(1.0, 0.0, 0.0);
+    points->InsertNextPoint(1.0, 1.0, 0.0);
+    points->InsertNextPoint(0.0, 1.0, 0.0);
+    points->InsertNextPoint(2.0, 1.0, 2.0);
+    vtkNew<vtkCellArray> polys;
+    const vtkIdType t0[3] = { 0, 1, 2 }; // flat, in z=0
+    const vtkIdType t1[3] = { 0, 2, 3 }; // flat, in z=0
+    const vtkIdType t2[3] = { 1, 4, 2 }; // tilted, shares edge 1-2 with t0
+    polys->InsertNextCell(3, t0);
+    polys->InsertNextCell(3, t1);
+    polys->InsertNextCell(3, t2);
+    vtkNew<vtkPolyData> mesh;
+    mesh->SetPoints(points);
+    mesh->SetPolys(polys);
+    mesh->BuildLinks();
+
+    // A pick in the interior of triangle 0 -> FACE covering the two flat
+    // triangles; centroid is the unit square centre (0.5, 0.5, 0).
+    const auto obj = f3d::detail::ResolvePickedObject({ 0.7, 0.2, 0.0 }, mesh, 0, 0.05);
+    test("resolve interior pick is a face",
+      obj.ObjType == f3d::detail::MeasureObject::Type::FACE);
+    test("face centroid is the region centroid",
+      obj.P0 == approx(std::array<double, 3>{ 0.5, 0.5, 0.0 }));
+
+    // The region must include only the two flat triangles (6 vertex entries),
+    // never the tilted one, so every FacePoints entry has z == 0.
+    bool allFlat = !obj.FacePoints.empty();
+    for (const auto& p : obj.FacePoints)
+    {
+      if (std::fabs(p[2]) > 1e-9)
+      {
+        allFlat = false;
+      }
+    }
+    test("face region stops at the sharp edge", allFlat);
+    test("face region covers both flat triangles", obj.FacePoints.size() == 6);
+  }
+
   return test.result();
 }
