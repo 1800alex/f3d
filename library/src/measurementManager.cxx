@@ -5,10 +5,13 @@
 
 #include <vtkActor.h>
 #include <vtkCell.h>
+#include <vtkCellArray.h>
 #include <vtkDataSet.h>
 #include <vtkF3DRenderer.h>
 #include <vtkLineSource.h>
 #include <vtkNew.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
@@ -268,11 +271,11 @@ void measurementManager::UpdateHoverActor()
     return;
   }
 
-  if (this->HoverActor != nullptr)
+  for (const auto& actor : this->HoverActors)
   {
-    overlay->RemoveActor(this->HoverActor);
-    this->HoverActor = nullptr;
+    overlay->RemoveActor(actor);
   }
+  this->HoverActors.clear();
 
   if (!this->HoverObject.has_value())
   {
@@ -288,30 +291,80 @@ void measurementManager::UpdateHoverActor()
   const double markerRadius = (diag > 0.0 ? diag : 1.0) * 0.012;
 
   const MeasureObject& obj = this->HoverObject.value();
-  vtkNew<vtkPolyDataMapper> mapper;
-  if (obj.ObjType == MeasureObject::Type::POINT)
+
+  // Light-cyan preview, distinct from the yellow committed-selection markers.
+  const auto addHoverActor = [&](vtkSmartPointer<vtkActor> actor)
   {
-    vtkNew<vtkSphereSource> sphere;
-    sphere->SetCenter(obj.P0[0], obj.P0[1], obj.P0[2]);
-    sphere->SetRadius(markerRadius);
-    mapper->SetInputConnection(sphere->GetOutputPort());
+    actor->GetProperty()->SetColor(0.4, 0.9, 1.0);
+    actor->GetProperty()->LightingOff();
+    actor->PickableOff();
+    overlay->AddActor(actor);
+    this->HoverActors.emplace_back(actor);
+  };
+
+  if (obj.ObjType == MeasureObject::Type::FACE)
+  {
+    vtkSmartPointer<vtkActor> highlight = this->MakeFaceHighlightActor(obj.FacePoints);
+    if (highlight != nullptr)
+    {
+      addHoverActor(highlight);
+    }
   }
-  else
+
+  vtkNew<vtkPolyDataMapper> mapper;
+  if (obj.ObjType == MeasureObject::Type::EDGE)
   {
     vtkNew<vtkLineSource> line;
     line->SetPoint1(obj.P0[0], obj.P0[1], obj.P0[2]);
     line->SetPoint2(obj.P1[0], obj.P1[1], obj.P1[2]);
     mapper->SetInputConnection(line->GetOutputPort());
   }
+  else // POINT or FACE: a sphere at P0 (the vertex or the face centroid)
+  {
+    vtkNew<vtkSphereSource> sphere;
+    sphere->SetCenter(obj.P0[0], obj.P0[1], obj.P0[2]);
+    sphere->SetRadius(markerRadius);
+    mapper->SetInputConnection(sphere->GetOutputPort());
+  }
+  vtkSmartPointer<vtkActor> marker = vtkSmartPointer<vtkActor>::New();
+  marker->SetMapper(mapper);
+  marker->GetProperty()->SetLineWidth(3.0);
+  addHoverActor(marker);
+}
 
-  vtkNew<vtkActor> actor;
+//----------------------------------------------------------------------------
+vtkSmartPointer<vtkActor> measurementManager::MakeFaceHighlightActor(
+  const std::vector<std::array<double, 3>>& facePoints) const
+{
+  if (facePoints.size() < 3)
+  {
+    return nullptr;
+  }
+  vtkNew<vtkPoints> points;
+  vtkNew<vtkCellArray> triangles;
+  for (std::size_t i = 0; i + 2 < facePoints.size(); i += 3)
+  {
+    vtkIdType ids[3];
+    for (int k = 0; k < 3; ++k)
+    {
+      ids[k] = points->InsertNextPoint(facePoints[i + k].data());
+    }
+    triangles->InsertNextCell(3, ids);
+  }
+  vtkNew<vtkPolyData> poly;
+  poly->SetPoints(points);
+  poly->SetPolys(triangles);
+
+  vtkNew<vtkPolyDataMapper> mapper;
+  mapper->SetInputData(poly);
+
+  vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
   actor->SetMapper(mapper);
-  actor->GetProperty()->SetColor(0.4, 0.9, 1.0); // light cyan, distinct from selections
-  actor->GetProperty()->SetLineWidth(3.0);
-  actor->GetProperty()->LightingOff(); // flat color: the overlay layer has no lights
+  actor->GetProperty()->SetColor(1.0, 0.85, 0.0); // same yellow as selection markers
+  actor->GetProperty()->SetOpacity(0.35);
+  actor->GetProperty()->LightingOff();
   actor->PickableOff();
-  overlay->AddActor(actor);
-  this->HoverActor = actor;
+  return actor;
 }
 
 //----------------------------------------------------------------------------
@@ -375,9 +428,19 @@ void measurementManager::UpdateActors()
     {
       addSphere(obj.P0);
     }
-    else
+    else if (obj.ObjType == MeasureObject::Type::EDGE)
     {
       addLine(obj.P0, obj.P1, 1.0, 0.85, 0.0, 4.0); // highlight the selected edge
+    }
+    else // FACE
+    {
+      vtkSmartPointer<vtkActor> highlight = this->MakeFaceHighlightActor(obj.FacePoints);
+      if (highlight != nullptr)
+      {
+        overlay->AddActor(highlight);
+        this->Actors.emplace_back(highlight);
+      }
+      addSphere(obj.P0); // centroid marker
     }
   }
 

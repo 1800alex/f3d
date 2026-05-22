@@ -13,9 +13,9 @@
 #include <string>
 #include <vector>
 
+#include <vtkActor.h>
 #include <vtkSmartPointer.h>
 
-class vtkActor;
 class vtkDataSet;
 class vtkRenderer;
 
@@ -136,6 +136,14 @@ private:
   void UpdateHoverActor();
 
   /**
+   * Build a translucent highlight actor for a face region (triangle vertices,
+   * three consecutive entries per triangle). Returns nullptr for an empty
+   * region. The caller adds it to a renderer.
+   */
+  vtkSmartPointer<vtkActor> MakeFaceHighlightActor(
+    const std::vector<std::array<double, 3>>& facePoints) const;
+
+  /**
    * Return the layer-1 overlay renderer used to draw the measurement
    * annotation on top of the model, creating it on first use. Shares the scene
    * camera. Returns nullptr if there is no render window yet.
@@ -162,7 +170,7 @@ private:
   std::optional<MeasureObject> HoverObject;
 
   std::vector<vtkSmartPointer<vtkActor>> Actors;
-  vtkSmartPointer<vtkActor> HoverActor;
+  std::vector<vtkSmartPointer<vtkActor>> HoverActors;
   vtkSmartPointer<vtkRenderer> OverlayRenderer;
 };
 }
