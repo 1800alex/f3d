@@ -5,6 +5,7 @@
 #include <vtkIdList.h>
 #include <vtkLine.h>
 #include <vtkMath.h>
+#include <vtkMergePoints.h>
 #include <vtkNew.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
@@ -56,9 +57,81 @@ void TriangleNormal(vtkPolyData* mesh, vtkIdType cellId, double normal[3])
   vtkTriangle::ComputeNormal(p0, p1, p2, normal);
 }
 
+// Map each point id of `mesh` to a "canonical" id: the id of the first
+// coincident point seen (within vtkMergePoints' default tolerance). This makes
+// neighbor lookup work on meshes that store duplicate copies of shared
+// vertices (e.g. STL), where two triangles visually share an edge but use
+// different vertex ids for its endpoints.
+std::vector<vtkIdType> BuildCanonicalPointIds(vtkPolyData* mesh)
+{
+  std::vector<vtkIdType> canonical;
+  vtkPoints* points = mesh->GetPoints();
+  const vtkIdType nbPts = points != nullptr ? points->GetNumberOfPoints() : 0;
+  canonical.assign(nbPts, -1);
+  if (nbPts == 0)
+  {
+    return canonical;
+  }
+
+  vtkNew<vtkPoints> unique;
+  vtkNew<vtkMergePoints> merge;
+  double bounds[6];
+  mesh->GetBounds(bounds);
+  merge->InitPointInsertion(unique, bounds);
+
+  std::vector<vtkIdType> mergeToFirst;
+  for (vtkIdType i = 0; i < nbPts; ++i)
+  {
+    double p[3];
+    points->GetPoint(i, p);
+    vtkIdType mergeId = 0;
+    const int isNew = merge->InsertUniquePoint(p, mergeId);
+    if (isNew != 0)
+    {
+      if (static_cast<vtkIdType>(mergeToFirst.size()) <= mergeId)
+      {
+        mergeToFirst.resize(mergeId + 1, -1);
+      }
+      mergeToFirst[mergeId] = i;
+    }
+    canonical[i] = mergeToFirst[mergeId];
+  }
+  return canonical;
+}
+
+// Inverse map keyed by canonical id: the cells that use any point coincident
+// with that canonical position.
+std::vector<std::vector<vtkIdType>> BuildCanonicalPointToCells(
+  vtkPolyData* mesh, const std::vector<vtkIdType>& canonical)
+{
+  const vtkIdType nbPts = static_cast<vtkIdType>(canonical.size());
+  std::vector<std::vector<vtkIdType>> p2c(nbPts);
+  const vtkIdType nbCells = mesh->GetNumberOfCells();
+  vtkNew<vtkIdList> ptIds;
+  for (vtkIdType c = 0; c < nbCells; ++c)
+  {
+    mesh->GetCellPoints(c, ptIds);
+    std::set<vtkIdType> cIds;
+    for (vtkIdType k = 0; k < ptIds->GetNumberOfIds(); ++k)
+    {
+      const vtkIdType orig = ptIds->GetId(k);
+      if (orig >= 0 && orig < nbPts)
+      {
+        cIds.insert(canonical[orig]);
+      }
+    }
+    for (const vtkIdType cid : cIds)
+    {
+      p2c[cid].push_back(c);
+    }
+  }
+  return p2c;
+}
+
 // Breadth-first set of triangles coplanar with `seedCell` (normals within
-// `angleToleranceDeg` of the seed triangle's normal), edge-connected. Bounded
-// to `maxTriangles` to keep the worst case cheap on huge flat faces.
+// `angleToleranceDeg` of the seed triangle's normal), connected by coincident
+// edge vertices (not raw vertex ids — see BuildCanonicalPointIds). Bounded to
+// `maxTriangles` to keep the worst case cheap on huge flat faces.
 std::vector<vtkIdType> GrowCoplanarRegion(
   vtkPolyData* mesh, vtkIdType seedCell, double angleToleranceDeg, std::size_t maxTriangles)
 {
@@ -67,11 +140,25 @@ std::vector<vtkIdType> GrowCoplanarRegion(
   {
     return region;
   }
-  mesh->BuildLinks(); // idempotent; required for GetCellNeighbors
+
+  // Index the mesh by canonical (coordinate-merged) point ids, so we find
+  // edge-adjacent triangles even when the mesh stores duplicate vertices.
+  const std::vector<vtkIdType> canonical = BuildCanonicalPointIds(mesh);
+  const std::vector<std::vector<vtkIdType>> pointToCells =
+    BuildCanonicalPointToCells(mesh, canonical);
 
   double seedNormal[3];
   TriangleNormal(mesh, seedCell, seedNormal);
   const double cosTol = std::cos(vtkMath::RadiansFromDegrees(angleToleranceDeg));
+
+  const auto toCanonical = [&canonical](vtkIdType orig) -> vtkIdType
+  {
+    if (orig < 0 || orig >= static_cast<vtkIdType>(canonical.size()))
+    {
+      return orig;
+    }
+    return canonical[orig];
+  };
 
   std::set<vtkIdType> visited{ seedCell };
   std::queue<vtkIdType> frontier;
@@ -88,25 +175,36 @@ std::vector<vtkIdType> GrowCoplanarRegion(
     {
       continue;
     }
+    const vtkIdType cur[3] = { toCanonical(cellPts->GetId(0)), toCanonical(cellPts->GetId(1)),
+      toCanonical(cellPts->GetId(2)) };
+
     for (int e = 0; e < 3; ++e)
     {
-      vtkNew<vtkIdList> edge;
-      edge->InsertNextId(cellPts->GetId(e));
-      edge->InsertNextId(cellPts->GetId((e + 1) % 3));
-      vtkNew<vtkIdList> neighbors;
-      mesh->GetCellNeighbors(current, edge, neighbors);
-      for (vtkIdType n = 0; n < neighbors->GetNumberOfIds(); ++n)
+      const vtkIdType c1 = cur[e];
+      const vtkIdType c2 = cur[(e + 1) % 3];
+      if (c1 < 0 || c2 < 0 || c1 >= static_cast<vtkIdType>(pointToCells.size()) ||
+        c2 >= static_cast<vtkIdType>(pointToCells.size()))
       {
-        const vtkIdType nb = neighbors->GetId(n);
-        if (visited.count(nb) != 0 || mesh->GetCellType(nb) != VTK_TRIANGLE)
+        continue;
+      }
+
+      // Candidate neighbors: cells using both c1 and c2 (canonical), excluding
+      // current and any already visited.
+      for (const vtkIdType nb : pointToCells[c1])
+      {
+        if (nb == current || visited.count(nb) != 0 || mesh->GetCellType(nb) != VTK_TRIANGLE)
+        {
+          continue;
+        }
+        const auto& cellsAtC2 = pointToCells[c2];
+        if (std::find(cellsAtC2.begin(), cellsAtC2.end(), nb) == cellsAtC2.end())
         {
           continue;
         }
         double nbNormal[3];
         TriangleNormal(mesh, nb, nbNormal);
-        // |dot| so that triangles in the same plane with FLIPPED winding (their
-        // normal points the opposite way) are still treated as coplanar. Common
-        // in real-world meshes whose triangle winding is not strictly consistent.
+        // |dot| so coplanar triangles with FLIPPED winding (normals pointing
+        // opposite) still count as coplanar -- common in real-world meshes.
         if (std::fabs(vtkMath::Dot(seedNormal, nbNormal)) >= cosTol)
         {
           visited.insert(nb);
