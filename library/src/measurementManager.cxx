@@ -4,7 +4,9 @@
 #include "window_impl.h"
 
 #include <vtkActor.h>
+#include <vtkActor2D.h>
 #include <vtkCellArray.h>
+#include <vtkCoordinate.h>
 #include <vtkDataSet.h>
 #include <vtkF3DRenderer.h>
 #include <vtkIdList.h>
@@ -14,10 +16,12 @@
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
+#include <vtkPolyDataMapper2D.h>
 #include <vtkProperty.h>
+#include <vtkProperty2D.h>
+#include <vtkRegularPolygonSource.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
-#include <vtkSphereSource.h>
 
 #include <cmath>
 #include <iomanip>
@@ -309,54 +313,49 @@ void measurementManager::UpdateHoverActor()
     return;
   }
 
-  // Estimate a marker size from the scene's visible bounds.
-  double bounds[6];
-  mainRenderer->ComputeVisiblePropBounds(bounds);
-  const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
-    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
-    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
-  const double markerRadius = (diag > 0.0 ? diag : 1.0) * 0.012;
-
   const MeasureObject& obj = this->HoverObject.value();
-
-  // Light-cyan preview, distinct from the yellow committed-selection markers.
-  const auto addHoverActor = [&](vtkSmartPointer<vtkActor> actor)
-  {
-    actor->GetProperty()->SetColor(0.4, 0.9, 1.0);
-    actor->GetProperty()->LightingOff();
-    actor->PickableOff();
-    overlay->AddActor(actor);
-    this->HoverActors.emplace_back(actor);
-  };
+  static constexpr double hoverR = 0.4;
+  static constexpr double hoverG = 0.9;
+  static constexpr double hoverB = 1.0;
 
   if (obj.ObjType == MeasureObject::Type::FACE)
   {
+    // Translucent cyan face region highlight (3D, scales with the model).
     vtkSmartPointer<vtkActor> highlight = this->MakeFaceHighlightActor(obj.FacePoints);
     if (highlight != nullptr)
     {
-      addHoverActor(highlight);
+      highlight->GetProperty()->SetColor(hoverR, hoverG, hoverB);
+      highlight->GetProperty()->LightingOff();
+      highlight->PickableOff();
+      overlay->AddActor(highlight);
+      this->HoverActors.emplace_back(highlight);
     }
   }
 
-  vtkNew<vtkPolyDataMapper> mapper;
   if (obj.ObjType == MeasureObject::Type::EDGE)
   {
+    // A 3D line along the hovered edge -- pixel-width via SetLineWidth.
     vtkNew<vtkLineSource> line;
     line->SetPoint1(obj.P0[0], obj.P0[1], obj.P0[2]);
     line->SetPoint2(obj.P1[0], obj.P1[1], obj.P1[2]);
+    vtkNew<vtkPolyDataMapper> mapper;
     mapper->SetInputConnection(line->GetOutputPort());
+    vtkSmartPointer<vtkActor> edgeActor = vtkSmartPointer<vtkActor>::New();
+    edgeActor->SetMapper(mapper);
+    edgeActor->GetProperty()->SetColor(hoverR, hoverG, hoverB);
+    edgeActor->GetProperty()->SetLineWidth(3.0);
+    edgeActor->GetProperty()->LightingOff();
+    edgeActor->PickableOff();
+    overlay->AddActor(edgeActor);
+    this->HoverActors.emplace_back(edgeActor);
   }
-  else // POINT or FACE: a sphere at P0 (the vertex or the face centroid)
+  else // POINT or FACE: 2D fixed-pixel nodule at P0 (vertex or face centroid).
   {
-    vtkNew<vtkSphereSource> sphere;
-    sphere->SetCenter(obj.P0[0], obj.P0[1], obj.P0[2]);
-    sphere->SetRadius(markerRadius);
-    mapper->SetInputConnection(sphere->GetOutputPort());
+    vtkSmartPointer<vtkActor2D> nodule =
+      this->MakePointMarkerActor(obj.P0, hoverR, hoverG, hoverB);
+    overlay->AddActor(nodule);
+    this->HoverActors.emplace_back(nodule);
   }
-  vtkSmartPointer<vtkActor> marker = vtkSmartPointer<vtkActor>::New();
-  marker->SetMapper(mapper);
-  marker->GetProperty()->SetLineWidth(3.0);
-  addHoverActor(marker);
 }
 
 //----------------------------------------------------------------------------
@@ -387,9 +386,38 @@ vtkSmartPointer<vtkActor> measurementManager::MakeFaceHighlightActor(
 
   vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
   actor->SetMapper(mapper);
-  actor->GetProperty()->SetColor(1.0, 0.85, 0.0); // same yellow as selection markers
+  actor->GetProperty()->SetColor(1.0, 0.85, 0.0); // bright yellow region tint
   actor->GetProperty()->SetOpacity(0.35);
   actor->GetProperty()->LightingOff();
+  actor->PickableOff();
+  return actor;
+}
+
+//----------------------------------------------------------------------------
+vtkSmartPointer<vtkActor2D> measurementManager::MakePointMarkerActor(
+  const std::array<double, 3>& worldPos, double r, double g, double b) const
+{
+  // A filled disc rendered at a fixed pixel radius. The disc's points are in
+  // display coordinates relative to the actor's PositionCoordinate; setting
+  // that coordinate to WORLD with the 3D point makes VTK project the point to
+  // the screen each frame and render the disc at constant pixel size around
+  // the projected position -- independent of model scale and camera zoom.
+  static constexpr double markerPixelRadius = 6.0;
+
+  vtkNew<vtkRegularPolygonSource> disc;
+  disc->SetNumberOfSides(32);
+  disc->SetRadius(markerPixelRadius);
+  disc->SetCenter(0.0, 0.0, 0.0);
+  disc->GeneratePolygonOn();
+
+  vtkNew<vtkPolyDataMapper2D> mapper;
+  mapper->SetInputConnection(disc->GetOutputPort());
+
+  vtkSmartPointer<vtkActor2D> actor = vtkSmartPointer<vtkActor2D>::New();
+  actor->SetMapper(mapper);
+  actor->GetPositionCoordinate()->SetCoordinateSystemToWorld();
+  actor->GetPositionCoordinate()->SetValue(worldPos[0], worldPos[1], worldPos[2]);
+  actor->GetProperty()->SetColor(r, g, b);
   actor->PickableOff();
   return actor;
 }
@@ -405,14 +433,6 @@ void measurementManager::UpdateActors()
   {
     return;
   }
-
-  // Estimate a marker size from the scene's visible bounds.
-  double bounds[6];
-  mainRenderer->ComputeVisiblePropBounds(bounds);
-  const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
-    (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
-    (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
-  const double markerRadius = (diag > 0.0 ? diag : 1.0) * 0.01;
 
   const auto addLine = [&](const std::array<double, 3>& a, const std::array<double, 3>& b,
                          double r, double g, double bl, double width)
@@ -432,20 +452,13 @@ void measurementManager::UpdateActors()
     this->Actors.emplace_back(actor);
   };
 
-  const auto addSphere = [&](const std::array<double, 3>& c)
+  // A "nodule" is a 2D fixed-pixel disc anchored to a world point -- darker
+  // amber to read clearly against the brighter face highlight.
+  const auto addNodule = [&](const std::array<double, 3>& c)
   {
-    vtkNew<vtkSphereSource> sphere;
-    sphere->SetCenter(c[0], c[1], c[2]);
-    sphere->SetRadius(markerRadius);
-    vtkNew<vtkPolyDataMapper> mapper;
-    mapper->SetInputConnection(sphere->GetOutputPort());
-    vtkNew<vtkActor> actor;
-    actor->SetMapper(mapper);
-    actor->GetProperty()->SetColor(1.0, 0.85, 0.0);
-    actor->GetProperty()->LightingOff(); // flat color: the overlay layer has no lights
-    actor->PickableOff();
-    overlay->AddActor(actor);
-    this->Actors.emplace_back(actor);
+    vtkSmartPointer<vtkActor2D> marker = this->MakePointMarkerActor(c, 0.95, 0.6, 0.0);
+    overlay->AddActor(marker);
+    this->Actors.emplace_back(marker);
   };
 
   // Markers for each selected object.
@@ -453,7 +466,7 @@ void measurementManager::UpdateActors()
   {
     if (obj.ObjType == MeasureObject::Type::POINT)
     {
-      addSphere(obj.P0);
+      addNodule(obj.P0);
     }
     else if (obj.ObjType == MeasureObject::Type::EDGE)
     {
@@ -467,7 +480,7 @@ void measurementManager::UpdateActors()
         overlay->AddActor(highlight);
         this->Actors.emplace_back(highlight);
       }
-      addSphere(obj.P0); // centroid marker
+      addNodule(obj.P0); // centroid marker
     }
   }
 

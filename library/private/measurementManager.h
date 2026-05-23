@@ -16,7 +16,9 @@
 #include <vtkActor.h>
 #include <vtkSmartPointer.h>
 
+class vtkActor2D;
 class vtkDataSet;
+class vtkProp;
 class vtkRenderer;
 
 namespace f3d
@@ -146,6 +148,16 @@ private:
     const std::vector<std::array<double, 3>>& facePoints) const;
 
   /**
+   * Build a 2D filled-disc "nodule" marker at the given world position, in the
+   * given color. The disc renders at a fixed pixel radius regardless of camera
+   * zoom or model scale: the actor's PositionCoordinate is set to WORLD with
+   * the 3D point, so VTK projects the point to screen each frame and renders
+   * the disc at constant pixel size around that projected position.
+   */
+  vtkSmartPointer<vtkActor2D> MakePointMarkerActor(
+    const std::array<double, 3>& worldPos, double r, double g, double b) const;
+
+  /**
    * Return the layer-1 overlay renderer used to draw the measurement
    * annotation on top of the model, creating it on first use. Shares the scene
    * camera. Returns nullptr if there is no render window yet.
@@ -171,8 +183,10 @@ private:
   std::optional<MeasureResult> Result;
   std::optional<MeasureObject> HoverObject;
 
-  std::vector<vtkSmartPointer<vtkActor>> Actors;
-  std::vector<vtkSmartPointer<vtkActor>> HoverActors;
+  // 3D line/highlight actors and 2D fixed-pixel "nodule" markers share these
+  // vectors as base-class vtkProp pointers.
+  std::vector<vtkSmartPointer<vtkProp>> Actors;
+  std::vector<vtkSmartPointer<vtkProp>> HoverActors;
   vtkSmartPointer<vtkRenderer> OverlayRenderer;
 };
 }
