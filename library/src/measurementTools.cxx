@@ -205,7 +205,12 @@ std::vector<vtkIdType> GrowCoplanarRegion(
         TriangleNormal(mesh, nb, nbNormal);
         // |dot| so coplanar triangles with FLIPPED winding (normals pointing
         // opposite) still count as coplanar -- common in real-world meshes.
-        if (std::fabs(vtkMath::Dot(seedNormal, nbNormal)) >= cosTol)
+        // The small cosEpsilon absorbs floating-point noise in the normal
+        // computation, so an angular tolerance of zero degrees still accepts
+        // triangles that are coplanar within FP precision (e.g. neighbors on
+        // a tilted plane whose normals match to ~15 decimal places).
+        constexpr double cosEpsilon = 1e-9;
+        if (std::fabs(vtkMath::Dot(seedNormal, nbNormal)) >= cosTol - cosEpsilon)
         {
           visited.insert(nb);
           frontier.push(nb);
@@ -292,7 +297,7 @@ MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
   vtkPolyData* mesh = vtkPolyData::SafeDownCast(dataset);
   if (mesh != nullptr)
   {
-    region = GrowCoplanarRegion(mesh, cellId, 15.0, 5000);
+    region = GrowCoplanarRegion(mesh, cellId, 0.0, 5000);
   }
   if (region.empty())
   {
