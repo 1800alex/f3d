@@ -54,7 +54,8 @@ public:
    * cellId is ignored. The third pick after a completed measurement discards
    * it and starts fresh.
    */
-  void HandlePick(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId);
+  void HandlePick(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId,
+    bool faceMode);
 
   /**
    * Clear the current selection, measurement, hover preview and 3D actors.
@@ -66,7 +67,8 @@ public:
    * object that would be selected if clicked. A null dataset or invalid cellId
    * clears the preview. Returns true if the preview changed and a render is needed.
    */
-  bool HandleHover(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId);
+  bool HandleHover(const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId,
+    bool faceMode);
 
   /**
    * Remove the hover preview highlight, if any.

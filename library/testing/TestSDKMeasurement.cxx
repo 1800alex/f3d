@@ -76,7 +76,7 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // A pick within snap tolerance of vertex B -> POINT at B.
     {
-      const auto obj = f3d::detail::ResolvePickedObject({ 9.95, 0.02, 0.0 }, mesh, 0, 0.2);
+      const auto obj = f3d::detail::ResolvePickedObject({ 9.95, 0.02, 0.0 }, mesh, 0, 0.2, false);
       test("resolve pick snaps to vertex",
         obj.ObjType == f3d::detail::MeasureObject::Type::POINT &&
           obj.P0 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 }));
@@ -84,7 +84,7 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // A pick near the middle of edge A-B (far from any vertex) -> EDGE A-B.
     {
-      const auto obj = f3d::detail::ResolvePickedObject({ 5.0, 0.05, 0.0 }, mesh, 0, 0.2);
+      const auto obj = f3d::detail::ResolvePickedObject({ 5.0, 0.05, 0.0 }, mesh, 0, 0.2, false);
       const bool isEdgeAB = obj.ObjType == f3d::detail::MeasureObject::Type::EDGE &&
         ((obj.P0 == approx(std::array<double, 3>{ 0.0, 0.0, 0.0 }) &&
            obj.P1 == approx(std::array<double, 3>{ 10.0, 0.0, 0.0 })) ||
@@ -180,7 +180,8 @@ int TestSDKMeasurement([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // A pick in the interior of triangle 0 -> FACE covering the two flat
     // triangles; centroid is the unit square centre (0.5, 0.5, 0).
-    const auto obj = f3d::detail::ResolvePickedObject({ 0.7, 0.2, 0.0 }, mesh, 0, 0.05);
+    // faceMode = true: force face resolution regardless of snap distance.
+    const auto obj = f3d::detail::ResolvePickedObject({ 0.7, 0.2, 0.0 }, mesh, 0, 0.05, true);
     test("resolve interior pick is a face",
       obj.ObjType == f3d::detail::MeasureObject::Type::FACE);
     test("face centroid is the region centroid",

@@ -70,13 +70,20 @@ MeasureResult ComputeDistance(const MeasureObject& a, const MeasureObject& b);
 
 /**
  * Resolve a pick into a MeasureObject. worldPos is the picked world position;
- * dataset is the picked mesh and cellId the picked triangle. A pick within
- * snapTol of a triangle vertex resolves to a POINT; within snapTol of a
- * triangle edge resolves to that EDGE; otherwise it resolves to a FACE (the
- * coplanar region around the picked triangle, measured at its centroid).
+ * dataset is the picked mesh and cellId the picked triangle.
+ *
+ * When faceMode is false (the default click): a pick within snapTol of a
+ * triangle vertex resolves to a POINT; otherwise it resolves to the nearest
+ * EDGE of the triangle.
+ *
+ * When faceMode is true (e.g. Ctrl held): vertex/edge snapping is skipped
+ * entirely; the pick always resolves to a FACE -- the coplanar region around
+ * the picked triangle, measured at its centroid -- so the user gets clean
+ * face picking without any raw vertex/edge previews. `snapTol` is unused in
+ * this mode.
  */
 MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
-  vtkDataSet* dataset, vtkIdType cellId, double snapTol);
+  vtkDataSet* dataset, vtkIdType cellId, double snapTol, bool faceMode);
 
 /**
  * Return the 4 points of the right-angle "staircase" path from a to b for the

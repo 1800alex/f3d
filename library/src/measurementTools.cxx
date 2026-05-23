@@ -221,57 +221,61 @@ namespace f3d::detail
 {
 //----------------------------------------------------------------------------
 MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
-  vtkDataSet* dataset, vtkIdType cellId, double snapTol)
+  vtkDataSet* dataset, vtkIdType cellId, double snapTol, bool faceMode)
 {
   MeasureObject obj{};
-  vtkCell* cell = dataset->GetCell(cellId);
-  vtkPoints* pts = cell->GetPoints();
-  const vtkIdType nbPts = pts->GetNumberOfPoints();
 
-  // 1. Snap to the nearest vertex if within snapTol.
-  vtkIdType nearestVertex = -1;
-  double bestVertexDist2 = snapTol * snapTol;
-  for (vtkIdType i = 0; i < nbPts; ++i)
+  // Default click: vertex snap, then nearest-edge as the unconditional
+  // fallback. Face picking is intentionally NOT auto-detected here -- it is
+  // a separate explicit mode triggered by faceMode (e.g. Ctrl held), so the
+  // user never sees raw vertex/edge previews when they wanted a face.
+  if (!faceMode)
   {
-    double p[3];
-    pts->GetPoint(i, p);
-    const double d2 = vtkMath::Distance2BetweenPoints(worldPos.data(), p);
-    if (d2 <= bestVertexDist2)
-    {
-      bestVertexDist2 = d2;
-      nearestVertex = i;
-    }
-  }
-  if (nearestVertex >= 0)
-  {
-    double p[3];
-    pts->GetPoint(nearestVertex, p);
-    obj.ObjType = MeasureObject::Type::POINT;
-    obj.P0 = { p[0], p[1], p[2] };
-    return obj;
-  }
+    vtkCell* cell = dataset->GetCell(cellId);
+    vtkPoints* pts = cell->GetPoints();
+    const vtkIdType nbPts = pts->GetNumberOfPoints();
 
-  // 2. Otherwise pick the cell edge nearest to worldPos.
-  vtkIdType bestEdge = 0;
-  double bestEdgeDist2 = std::numeric_limits<double>::max();
-  for (vtkIdType i = 0; i < nbPts; ++i)
-  {
-    double e0[3];
-    double e1[3];
-    pts->GetPoint(i, e0);
-    pts->GetPoint((i + 1) % nbPts, e1);
-    double closest[3];
-    ClosestPointOnSegment(worldPos.data(), e0, e1, closest);
-    const double d2 = vtkMath::Distance2BetweenPoints(worldPos.data(), closest);
-    if (d2 < bestEdgeDist2)
+    // 1. Snap to the nearest vertex if within snapTol.
+    vtkIdType nearestVertex = -1;
+    double bestVertexDist2 = snapTol * snapTol;
+    for (vtkIdType i = 0; i < nbPts; ++i)
     {
-      bestEdgeDist2 = d2;
-      bestEdge = i;
+      double p[3];
+      pts->GetPoint(i, p);
+      const double d2 = vtkMath::Distance2BetweenPoints(worldPos.data(), p);
+      if (d2 <= bestVertexDist2)
+      {
+        bestVertexDist2 = d2;
+        nearestVertex = i;
+      }
     }
-  }
-  // 2b. If the nearest edge is within snapTol, it is an EDGE pick.
-  if (bestEdgeDist2 <= snapTol * snapTol)
-  {
+    if (nearestVertex >= 0)
+    {
+      double p[3];
+      pts->GetPoint(nearestVertex, p);
+      obj.ObjType = MeasureObject::Type::POINT;
+      obj.P0 = { p[0], p[1], p[2] };
+      return obj;
+    }
+
+    // 2. Otherwise pick the cell edge nearest to worldPos (unconditional).
+    vtkIdType bestEdge = 0;
+    double bestEdgeDist2 = std::numeric_limits<double>::max();
+    for (vtkIdType i = 0; i < nbPts; ++i)
+    {
+      double e0[3];
+      double e1[3];
+      pts->GetPoint(i, e0);
+      pts->GetPoint((i + 1) % nbPts, e1);
+      double closest[3];
+      ClosestPointOnSegment(worldPos.data(), e0, e1, closest);
+      const double d2 = vtkMath::Distance2BetweenPoints(worldPos.data(), closest);
+      if (d2 < bestEdgeDist2)
+      {
+        bestEdgeDist2 = d2;
+        bestEdge = i;
+      }
+    }
     double e0[3];
     double e1[3];
     pts->GetPoint(bestEdge, e0);
@@ -282,8 +286,8 @@ MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
     return obj;
   }
 
-  // 3. Otherwise it is a FACE: region-grow coplanar triangles around the
-  //    picked triangle and measure at the area-weighted centroid.
+  // faceMode: region-grow coplanar triangles around the picked triangle and
+  // measure at the area-weighted centroid.
   std::vector<vtkIdType> region;
   vtkPolyData* mesh = vtkPolyData::SafeDownCast(dataset);
   if (mesh != nullptr)

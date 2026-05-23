@@ -100,7 +100,7 @@ void measurementManager::Clear()
 
 //----------------------------------------------------------------------------
 void measurementManager::HandlePick(
-  const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId)
+  const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId, bool faceMode)
 {
   if (!this->Active || dataset == nullptr || cellId < 0)
   {
@@ -114,8 +114,8 @@ void measurementManager::HandlePick(
     this->Result.reset();
   }
 
-  this->Selection.push_back(
-    ResolvePickedObject(worldPos, dataset, cellId, SnapToleranceForCell(dataset, cellId)));
+  this->Selection.push_back(ResolvePickedObject(
+    worldPos, dataset, cellId, SnapToleranceForCell(dataset, cellId), faceMode));
 
   if (this->Selection.size() == 2)
   {
@@ -130,15 +130,15 @@ void measurementManager::HandlePick(
 
 //----------------------------------------------------------------------------
 bool measurementManager::HandleHover(
-  const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId)
+  const std::array<double, 3>& worldPos, vtkDataSet* dataset, vtkIdType cellId, bool faceMode)
 {
   if (!this->Active || dataset == nullptr || cellId < 0)
   {
     return this->ClearHover();
   }
 
-  const MeasureObject obj =
-    ResolvePickedObject(worldPos, dataset, cellId, SnapToleranceForCell(dataset, cellId));
+  const MeasureObject obj = ResolvePickedObject(
+    worldPos, dataset, cellId, SnapToleranceForCell(dataset, cellId), faceMode);
 
   // Skip the rebuild (and the render it triggers) when hovering the same object.
   if (this->HoverObject.has_value() && this->HoverObject->ObjType == obj.ObjType &&

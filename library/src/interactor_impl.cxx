@@ -413,7 +413,10 @@ public:
       const vtkIdType cellId = self->CellPicker->GetCellId();
       if (ds != nullptr && cellId >= 0)
       {
-        self->MeasurementManager.HandlePick({ pickPos[0], pickPos[1], pickPos[2] }, ds, cellId);
+        // Ctrl held => face-detection mode; plain click => point/edge.
+        const bool faceMode = self->VTKInteractor->GetControlKey() != 0;
+        self->MeasurementManager.HandlePick(
+          { pickPos[0], pickPos[1], pickPos[2] }, ds, cellId, faceMode);
         self->Style->GetInteractor()->GetRenderWindow()->Render();
         picked = true;
       }
@@ -452,8 +455,11 @@ public:
       cellId = self->CellPicker->GetCellId();
     }
 
+    // Ctrl held => preview a face under the cursor; otherwise vertex/edge preview.
+    const bool faceMode = self->VTKInteractor->GetControlKey() != 0;
     const bool changed = (ds != nullptr && cellId >= 0)
-      ? self->MeasurementManager.HandleHover({ pickPos[0], pickPos[1], pickPos[2] }, ds, cellId)
+      ? self->MeasurementManager.HandleHover(
+          { pickPos[0], pickPos[1], pickPos[2] }, ds, cellId, faceMode)
       : self->MeasurementManager.ClearHover();
 
     if (changed)

@@ -127,9 +127,11 @@ click selects either a mesh **vertex** (when clicking near one) or a mesh
 **edge**. The distance is drawn as a line in the 3D scene and shown in a panel
 in the bottom-right corner.
 
-Clicking in the interior of a triangle (away from any vertex or edge) selects
-the whole coplanar **face** around it; the face's centroid is used as the
-measured point and the detected region is highlighted.
+Hold <kbd>Ctrl</kbd> while clicking (or hovering) to switch to **face
+picking**: the coplanar region around the picked triangle is detected and
+highlighted, and the face's centroid is used as the measured point. Without
+the modifier, picking stays in point/edge mode so the raw triangle vertices
+and edges never clutter the preview.
 
 The panel has two combo boxes: **Model units** (the unit the model geometry is
 in) and **Display units** (the unit to show results in). Supported units are
