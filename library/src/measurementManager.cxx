@@ -23,7 +23,10 @@
 
 namespace
 {
-// Snap tolerance for pick resolution, scaled to the picked cell's size.
+// Snap tolerance for pick resolution, scaled to the picked cell's size. Used
+// for vertex AND edge snapping. A small fraction lets clicks in the interior
+// of a triangle reliably fall through to face resolution; vertex/edge picks
+// require the click to be genuinely on the vertex or edge.
 double SnapToleranceForCell(vtkDataSet* dataset, vtkIdType cellId)
 {
   double bounds[6];
@@ -31,7 +34,7 @@ double SnapToleranceForCell(vtkDataSet* dataset, vtkIdType cellId)
   const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +
     (bounds[3] - bounds[2]) * (bounds[3] - bounds[2]) +
     (bounds[5] - bounds[4]) * (bounds[5] - bounds[4]));
-  return 0.25 * diag;
+  return 0.10 * diag;
 }
 }
 
