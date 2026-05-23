@@ -1853,6 +1853,18 @@ void vtkF3DRenderer::ConfigureMetaData()
 }
 
 //----------------------------------------------------------------------------
+void vtkF3DRenderer::ConfigureMeasurement(bool visible, const std::string& text,
+  const std::string& components, const std::string& axis, const std::string& modelUnit,
+  const std::string& displayUnit)
+{
+  this->UIActor->SetMeasurementVisibility(visible);
+  this->UIActor->SetMeasurement(text);
+  this->UIActor->SetMeasurementComponents(components);
+  this->UIActor->SetMeasurementAxis(axis);
+  this->UIActor->SetMeasurementUnits(modelUnit, displayUnit);
+}
+
+//----------------------------------------------------------------------------
 void vtkF3DRenderer::ShowSceneHierarchy(bool show)
 {
   if (this->SceneHierarchyVisible != show)

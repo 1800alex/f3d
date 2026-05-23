@@ -77,6 +77,11 @@ private:
   void RenderMetaData() override;
 
   /**
+   * Render the measurement panel UI widget
+   */
+  void RenderMeasurement() override;
+
+  /**
    * Render the HDRI filename UI widget
    */
   void RenderHDRIFileName() override;
@@ -120,6 +125,17 @@ private:
    * Compute the width of a badge
    */
   float CalcBadgeWidth(const std::string& text);
+
+  /**
+   * Emit a `set_measurement_unit` command applying a unit change.
+   * `which` is "model" or "display"; an empty `value` means unitless.
+   */
+  void EmitMeasurementUnitChange(const std::string& which, const std::string& value);
+
+  /**
+   * Emit a `set_measurement_axis` command. `axis` is "free", "x", "y" or "z".
+   */
+  void EmitMeasurementAxisChange(const std::string& axis);
 };
 
 #endif

@@ -175,6 +175,17 @@
           "implicitValue": "1"
         },
         {
+          "longName": "measurement-model-unit",
+          "helpText": "Unit the model geometry is expressed in, used by measurement mode (mm/cm/m/in/ft)",
+          "valueHelper": "<unit>"
+        },
+        {
+          "longName": "measurement-display-unit",
+          "helpText": "Unit measurement results are displayed in (mm/cm/m/in/ft)",
+          "valueHelper": "<unit>"
+        },
+        { "longName": "measurement-axis", "helpText": "Measurement axis constraint (free/x/y/z)", "valueHelper": "<axis>" },
+        {
           "longName": "grid",
           "shortName": "g",
           "helpText": "Show grid",

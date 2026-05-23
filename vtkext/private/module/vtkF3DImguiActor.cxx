@@ -868,6 +868,136 @@ void vtkF3DImguiActor::RenderMetaData()
 }
 
 //----------------------------------------------------------------------------
+void vtkF3DImguiActor::RenderMeasurement()
+{
+  const ImGuiViewport* viewport = ImGui::GetMainViewport();
+  constexpr float margin = F3DStyle::GetDefaultMargin();
+
+  // Underlying option values; the empty string means "unitless".
+  static const char* units[] = { "", "mm", "cm", "m", "in", "ft" };
+  // Labels shown in the combo; the unitless entry needs a visible label
+  // instead of rendering as a blank line.
+  static const char* unitLabels[] = { "(none)", "mm", "cm", "m", "in", "ft" };
+
+  const auto unitIndex = [&](const std::string& u)
+  {
+    for (int i = 0; i < IM_ARRAYSIZE(units); ++i)
+    {
+      if (u == units[i])
+      {
+        return i;
+      }
+    }
+    return 0;
+  };
+
+  // Auto-resizing window (AlwaysAutoResize) anchored by its bottom-right corner
+  // (pivot {1,1}) to the viewport's bottom-right corner, so the panel grows
+  // up-and-left as rows are added and never overflows the viewport. An initial
+  // size avoids a blank first frame when rendering offscreen.
+  ImGui::SetNextWindowSize(ImVec2(280.f, 220.f), ImGuiCond_Once);
+  ImGui::SetNextWindowPos(
+    ImVec2(viewport->WorkSize.x - margin, viewport->WorkSize.y - margin), ImGuiCond_Always,
+    ImVec2(1.0f, 1.0f));
+
+  ImGuiStyle& style = ImGui::GetStyle();
+  style.Colors[ImGuiCol_WindowBg] = ImVec4(
+    this->BackdropColor[0], this->BackdropColor[1], this->BackdropColor[2], this->BackdropOpacity);
+
+  ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
+    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove |
+    ImGuiWindowFlags_AlwaysAutoResize;
+
+  ImGui::Begin("Measurement", nullptr, flags);
+  ImGui::TextUnformatted(this->Measurement.c_str());
+
+  if (!this->MeasurementComponents.empty())
+  {
+    ImGui::TextUnformatted(this->MeasurementComponents.c_str());
+  }
+
+  ImGui::SeparatorText("Axis");
+  {
+    static const char* axisNames[] = { "free", "x", "y", "z" };
+    int axisIdx = 0;
+    for (int i = 0; i < IM_ARRAYSIZE(axisNames); ++i)
+    {
+      if (this->MeasurementAxis == axisNames[i])
+      {
+        axisIdx = i;
+      }
+    }
+    const int previous = axisIdx;
+    ImGui::RadioButton("Free", &axisIdx, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("X", &axisIdx, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("Y", &axisIdx, 2);
+    ImGui::SameLine();
+    ImGui::RadioButton("Z", &axisIdx, 3);
+    if (axisIdx != previous)
+    {
+      this->EmitMeasurementAxisChange(axisNames[axisIdx]);
+    }
+  }
+
+  ImGui::SeparatorText("Units");
+
+  // A labelled combo: a descriptive text label, then the dropdown on the same
+  // line at a fixed offset so the two rows align. The combo uses a hidden
+  // ("##") id so only the descriptive label is shown.
+  const auto unitRow = [&](const char* label, const char* tooltip, const char* comboId,
+                         const std::string& current, const char* which)
+  {
+    ImGui::TextUnformatted(label);
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip("%s", tooltip);
+    }
+    ImGui::SameLine(110.f);
+    ImGui::PushItemWidth(90.f);
+    int idx = unitIndex(current);
+    if (ImGui::Combo(comboId, &idx, unitLabels, IM_ARRAYSIZE(unitLabels)))
+    {
+      this->EmitMeasurementUnitChange(which, units[idx]);
+    }
+    ImGui::PopItemWidth();
+  };
+
+  unitRow("Model", "The unit the loaded model's geometry is expressed in",
+    "##modelunit", this->MeasurementModelUnit, "model");
+  unitRow("Display", "The unit measurement results are converted to and displayed in",
+    "##displayunit", this->MeasurementDisplayUnit, "display");
+
+  ImGui::End();
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DImguiActor::EmitMeasurementUnitChange(
+  const std::string& which, const std::string& value)
+{
+  // A single command sets the option and refreshes the panel. Emitting two
+  // separate commands would not work: the command buffer holds only one, so
+  // the second would overwrite the first. An empty value (unitless) is passed
+  // by omitting the unit argument.
+  std::string command = "set_measurement_unit " + which;
+  if (!value.empty())
+  {
+    command += " " + value;
+  }
+  vtkOutputWindow::GetInstance()->InvokeEvent(
+    vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DImguiActor::EmitMeasurementAxisChange(const std::string& axis)
+{
+  std::string command = "set_measurement_axis " + axis;
+  vtkOutputWindow::GetInstance()->InvokeEvent(
+    vtkF3DUserEvents::TriggerEvent, const_cast<char*>(command.c_str()));
+}
+
+//----------------------------------------------------------------------------
 void vtkF3DImguiActor::RenderHDRIFileName()
 {
   if (!this->HDRIFileName.empty())

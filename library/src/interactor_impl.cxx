@@ -1,6 +1,7 @@
 #include "interactor_impl.h"
 
 #include "animationManager.h"
+#include "measurementManager.h"
 #include "engine.h"
 #include "log.h"
 #include "scene_impl.h"
@@ -22,6 +23,7 @@
 
 #include <vtkCallbackCommand.h>
 #include <vtkCellPicker.h>
+#include <vtkDataSet.h>
 #include <vtkGenericRenderWindowInteractor.h>
 #include <vtkMath.h>
 #include <vtkMatrix3x3.h>
@@ -75,6 +77,7 @@ public:
     , Window(window)
     , Scene(scene)
     , Interactor(inter)
+    , MeasurementManager(options, window)
   {
     window::Type type = window.getType();
     if (type == window::Type::GLX || type == window::Type::WGL || type == window::Type::COCOA ||
@@ -132,6 +135,16 @@ public:
     middleButtonReleaseCallback->SetClientData(this);
     middleButtonReleaseCallback->SetCallback(OnMiddleButtonRelease);
     this->Style->AddObserver(vtkCommand::MiddleButtonReleaseEvent, middleButtonReleaseCallback);
+
+    vtkNew<vtkCallbackCommand> leftButtonPressCallback;
+    leftButtonPressCallback->SetClientData(this);
+    leftButtonPressCallback->SetCallback(OnLeftButtonPress);
+    this->Style->AddObserver(vtkCommand::LeftButtonPressEvent, leftButtonPressCallback);
+
+    vtkNew<vtkCallbackCommand> mouseMoveCallback;
+    mouseMoveCallback->SetClientData(this);
+    mouseMoveCallback->SetCallback(OnMouseMove);
+    this->VTKInteractor->AddObserver(vtkCommand::MouseMoveEvent, mouseMoveCallback);
 
     this->Recorder = vtkSmartPointer<vtkF3DInteractorEventRecorder>::New();
     this->Recorder->SetInteractor(this->VTKInteractor);
@@ -333,6 +346,22 @@ public:
       interaction[0] = std::toupper(interaction[0]);
     }
 
+    if (interaction == "Escape" && self->MeasurementManager.IsActive())
+    {
+      if (self->MeasurementManager.HasSelection())
+      {
+        // First Escape: clear the current measurement, stay in measurement mode.
+        self->MeasurementManager.Clear();
+        self->Style->GetInteractor()->GetRenderWindow()->Render();
+      }
+      else
+      {
+        // Escape with nothing selected: leave measurement mode.
+        self->Interactor.triggerCommand("toggle_measurement");
+      }
+      return;
+    }
+
     self->TriggerBinding(interaction, "");
   }
 
@@ -357,6 +386,86 @@ public:
     }
 
     self->TriggerBinding("Drop", filesString);
+  }
+
+  //----------------------------------------------------------------------------
+  static void OnLeftButtonPress(vtkObject*, unsigned long, void* clientData, void*)
+  {
+    internals* self = static_cast<internals*>(clientData);
+
+    if (!self->MeasurementManager.IsActive())
+    {
+      // Not in measurement mode: let the normal interactor style handle it.
+      self->Style->OnLeftButtonDown();
+      return;
+    }
+
+    const int* pos = self->VTKInteractor->GetEventPosition();
+    vtkRenderer* renderer =
+      self->VTKInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+
+    bool picked = false;
+    if (self->CellPicker->Pick(pos[0], pos[1], 0, renderer))
+    {
+      double pickPos[3];
+      self->CellPicker->GetPickPosition(pickPos);
+      vtkDataSet* ds = self->CellPicker->GetDataSet();
+      const vtkIdType cellId = self->CellPicker->GetCellId();
+      if (ds != nullptr && cellId >= 0)
+      {
+        // Ctrl held => face-detection mode; plain click => point/edge.
+        const bool faceMode = self->VTKInteractor->GetControlKey() != 0;
+        self->MeasurementManager.HandlePick(
+          { pickPos[0], pickPos[1], pickPos[2] }, ds, cellId, faceMode);
+        self->Style->GetInteractor()->GetRenderWindow()->Render();
+        picked = true;
+      }
+    }
+
+    // If the click did not land on a viable selection, fall through to the
+    // normal interactor style so the user can still rotate/drag the camera.
+    if (!picked)
+    {
+      self->Style->OnLeftButtonDown();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // While measurement mode is active, preview the object under the cursor.
+  static void OnMouseMove(vtkObject*, unsigned long, void* clientData, void*)
+  {
+    internals* self = static_cast<internals*>(clientData);
+
+    if (!self->MeasurementManager.IsActive())
+    {
+      return;
+    }
+
+    const int* pos = self->VTKInteractor->GetEventPosition();
+    vtkRenderer* renderer =
+      self->VTKInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer();
+
+    vtkDataSet* ds = nullptr;
+    vtkIdType cellId = -1;
+    double pickPos[3] = { 0.0, 0.0, 0.0 };
+    if (self->CellPicker->Pick(pos[0], pos[1], 0, renderer))
+    {
+      self->CellPicker->GetPickPosition(pickPos);
+      ds = self->CellPicker->GetDataSet();
+      cellId = self->CellPicker->GetCellId();
+    }
+
+    // Ctrl held => preview a face under the cursor; otherwise vertex/edge preview.
+    const bool faceMode = self->VTKInteractor->GetControlKey() != 0;
+    const bool changed = (ds != nullptr && cellId >= 0)
+      ? self->MeasurementManager.HandleHover(
+          { pickPos[0], pickPos[1], pickPos[2] }, ds, cellId, faceMode)
+      : self->MeasurementManager.ClearHover();
+
+    if (changed)
+    {
+      self->VTKInteractor->GetRenderWindow()->Render();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -670,6 +779,7 @@ public:
   scene_impl& Scene;
   interactor_impl& Interactor;
   animationManager* AnimationManager;
+  measurementManager MeasurementManager;
 
   vtkSmartPointer<vtkRenderWindowInteractor> VTKInteractor;
   vtkNew<vtkF3DInteractorStyle> Style;
@@ -1338,6 +1448,53 @@ interactor& interactor_impl::initCommands()
     command_documentation_t{ "toggle_animation", "start/stop the animation" });
 
   this->addCommand(
+    "toggle_measurement",
+    [&](const std::vector<std::string>&)
+    {
+      this->Internals->MeasurementManager.ToggleMeasurement();
+      this->Internals->Window.GetRenderer()->SetCheatSheetConfigured(false);
+      this->requestRender();
+    },
+    command_documentation_t{ "toggle_measurement", "toggle measurement mode on/off" });
+
+  this->addCommand(
+    "set_measurement_unit",
+    [&](const std::vector<std::string>& args)
+    {
+      // args: <model|display> [unit]; an omitted unit means unitless.
+      if (args.empty())
+      {
+        return;
+      }
+      const std::string optionName = (args[0] == "display")
+        ? "ui.measurement.display_unit"
+        : "ui.measurement.model_unit";
+      const std::string unit = args.size() >= 2 ? args[1] : std::string();
+      this->Internals->Options.setAsString(optionName, unit);
+      this->Internals->MeasurementManager.RefreshPanel();
+      this->requestRender();
+    },
+    command_documentation_t{ "set_measurement_unit",
+      "set a measurement unit (model|display) and refresh the panel" });
+
+  this->addCommand(
+    "set_measurement_axis",
+    [&](const std::vector<std::string>& args)
+    {
+      // args: <free|x|y|z>
+      if (args.empty())
+      {
+        return;
+      }
+      this->Internals->Options.setAsString("ui.measurement.axis", args[0]);
+      // The axis affects the drawn geometry, so rebuild actors, not just the panel.
+      this->Internals->MeasurementManager.RefreshMeasurement();
+      this->requestRender();
+    },
+    command_documentation_t{ "set_measurement_axis",
+      "set the measurement axis (free|x|y|z) and refresh the measurement" });
+
+  this->addCommand(
     "toggle_animation_backward",
     [&](const std::vector<std::string>&) { this->toggleAnimation(AnimationDirection::BACKWARD); },
     command_documentation_t{ "toggle_animation_backward", "start/stop the animation backward" });
@@ -1702,6 +1859,9 @@ interactor& interactor_impl::initBindings()
 #if F3D_MODULE_UI
   this->addBinding({mod_t::NONE, "N"}, "toggle ui.filename","Scene", std::bind(docTgl, "Filename", std::cref(opts.ui.filename)), f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::NONE, "M"}, "toggle ui.metadata","Scene", std::bind(docTgl, "Metadata", std::cref(opts.ui.metadata)), f3d::interactor::BindingType::TOGGLE);
+  this->addBinding({mod_t::SHIFT, "M"}, "toggle_measurement", "Scene",
+    [&]() { return std::pair(std::string("Measurement mode"), this->Internals->MeasurementManager.IsActive() ? std::string("ON") : std::string("OFF")); },
+    f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::SHIFT, "N"}, "toggle ui.hdri_filename","Scene", std::bind(docTgl, "HDRI filename", std::cref(opts.ui.hdri_filename)), f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::SHIFT, "H"}, "toggle ui.scene_hierarchy","Scene", std::bind(docTgl, "Scene hierarchy", std::cref(opts.ui.scene_hierarchy)), f3d::interactor::BindingType::TOGGLE);
   this->addBinding({mod_t::NONE, "Z"}, "toggle ui.fps","Scene", std::bind(docTgl, "FPS Counter", std::cref(opts.ui.fps)), f3d::interactor::BindingType::TOGGLE);
@@ -2162,6 +2322,12 @@ interactor& interactor_impl::requestStop()
 void interactor_impl::SetAnimationManager(animationManager* manager)
 {
   this->Internals->AnimationManager = manager;
+}
+
+//----------------------------------------------------------------------------
+void interactor_impl::ClearMeasurement()
+{
+  this->Internals->MeasurementManager.Clear();
 }
 
 //----------------------------------------------------------------------------

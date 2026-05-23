@@ -151,6 +151,12 @@ public:
     this->MetaImporter->RemoveObservers(vtkCommand::ProgressEvent);
     progressWidget->Off();
 
+    // Clear any active measurement selection before loading new content
+    if (this->Interactor)
+    {
+      this->Interactor->ClearMeasurement();
+    }
+
     // Initialize the animation using temporal information from the importer
     this->AnimationManager.UpdateDynamicOptions();
     this->AnimationManager.Initialize();

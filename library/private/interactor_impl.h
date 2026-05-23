@@ -100,6 +100,12 @@ public:
 
   /**
    * Implementation only API.
+   * Clear any active measurement selection. Called by the scene on file load.
+   */
+  void ClearMeasurement();
+
+  /**
+   * Implementation only API.
    * An utility method to set internal VTK interactor on a vtkInteractorObserver object.
    */
   void SetInteractorOn(vtkInteractorObserver* observer);

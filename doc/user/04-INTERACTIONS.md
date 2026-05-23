@@ -58,6 +58,7 @@ Other options can be toggled or cycled directly by pressing the following hotkey
 - <kbd>N</kbd>: the display of the file name.
 - <kbd>Shift</kbd>+<kbd>N</kbd>: the display of the HDRI file name.
 - <kbd>M</kbd>: the display of the metadata if exists.
+- <kbd>Shift</kbd>+<kbd>m</kbd>: toggle measurement mode.
 - <kbd>Shift</kbd>+<kbd>H</kbd>: the display of the scene hierarchy.
 - <kbd>Z</kbd>: the display of the FPS counter.
 - <kbd>R</kbd>: raytracing.
@@ -117,6 +118,38 @@ Other hotkeys and interactions are available:
 - <kbd>Shift</kbd> + _Drop_ a HDRI and use it, no extensions checks performed.
 
 When loading another file or reloading, options that have been changed interactively are kept as is, except when using [imperative options](06-CONFIGURATION_FILE.md#imperative-options) in configuration files.
+
+## Measurement Mode
+
+Press <kbd>Shift</kbd>+<kbd>M</kbd> to toggle measurement mode. While active,
+left-click two objects in the model to measure the distance between them. Each
+click selects either a mesh **vertex** (when clicking near one) or a mesh
+**edge**. The distance is drawn as a line in the 3D scene and shown in a panel
+in the bottom-right corner.
+
+Hold <kbd>Ctrl</kbd> while clicking (or hovering) to switch to **face
+picking**: the coplanar region around the picked triangle is detected and
+highlighted, and the face's centroid is used as the measured point. Without
+the modifier, picking stays in point/edge mode so the raw triangle vertices
+and edges never clutter the preview.
+
+The panel has two combo boxes: **Model units** (the unit the model geometry is
+in) and **Display units** (the unit to show results in). Supported units are
+`mm`, `cm`, `m`, `in` and `ft`; leaving a combo blank means unitless and
+disables conversion. These map to the `ui.measurement.model_unit` and
+`ui.measurement.display_unit` options.
+
+The panel also shows a per-axis breakdown (X, Y, Z) of the measurement and an
+**Axis** selector. With `Free` selected the straight-line distance is reported;
+selecting `X`, `Y` or `Z` reports the distance along that model axis and draws
+a right-angle path showing how the straight-line distance decomposes. The axis
+maps to the `ui.measurement.axis` option.
+
+Press <kbd>Esc</kbd> while in measurement mode to clear the current selection.
+Selecting a third object discards the previous measurement and starts a new one.
+
+> [!NOTE]
+> Edges are triangulation edges of the mesh, not CAD feature edges.
 
 ## Cycling Coloring
 

@@ -79,6 +79,38 @@ void vtkF3DUIActor::SetMetaData(const std::string& metadata)
 }
 
 //----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurementVisibility(bool show)
+{
+  this->MeasurementVisible = show;
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurement(const std::string& measurement)
+{
+  this->Measurement = measurement;
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurementUnits(
+  const std::string& modelUnit, const std::string& displayUnit)
+{
+  this->MeasurementModelUnit = modelUnit;
+  this->MeasurementDisplayUnit = displayUnit;
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurementComponents(const std::string& components)
+{
+  this->MeasurementComponents = components;
+}
+
+//----------------------------------------------------------------------------
+void vtkF3DUIActor::SetMeasurementAxis(const std::string& axis)
+{
+  this->MeasurementAxis = axis;
+}
+
+//----------------------------------------------------------------------------
 void vtkF3DUIActor::SetSceneHierarchyVisibility(bool show)
 {
   this->SceneHierarchyVisible = show;
@@ -261,6 +293,11 @@ int vtkF3DUIActor::RenderOverlay(vtkViewport* vp)
   if (this->MetaDataVisible)
   {
     this->RenderMetaData();
+  }
+
+  if (this->MeasurementVisible)
+  {
+    this->RenderMeasurement();
   }
 
   if (this->FpsCounterVisible)
