@@ -297,6 +297,7 @@ MeasureObject ResolvePickedObject(const std::array<double, 3>& worldPos,
   vtkPolyData* mesh = vtkPolyData::SafeDownCast(dataset);
   if (mesh != nullptr)
   {
+    // TODO: consider making the angle tolerance user-configurable. 0 degrees is probably fine for truly flat faces, but some real-world meshes have slight imperfections that may require a small tolerance to get a reasonable region size.
     region = GrowCoplanarRegion(mesh, cellId, 0.0, 5000);
   }
   if (region.empty())
