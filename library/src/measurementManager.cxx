@@ -7,7 +7,9 @@
 #include <vtkCellArray.h>
 #include <vtkDataSet.h>
 #include <vtkF3DRenderer.h>
+#include <vtkIdList.h>
 #include <vtkLineSource.h>
+#include <vtkMath.h>
 #include <vtkNew.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
@@ -19,16 +21,39 @@
 
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 namespace
 {
-// Snap tolerance for pick resolution, scaled to the picked cell's size. Used
-// for vertex AND edge snapping. A small fraction lets clicks in the interior
-// of a triangle reliably fall through to face resolution; vertex/edge picks
-// require the click to be genuinely on the vertex or edge.
+// Snap tolerance for pick resolution. Used for vertex AND edge snapping; the
+// click must fall within this distance to snap. For a triangle, scaling by the
+// SHORTEST edge keeps the tolerance proportional to the triangle's narrowest
+// dimension -- long thin triangles (common in real meshes) then still leave
+// room in the interior for face resolution. Non-triangles fall back to a
+// fraction of the cell-bounds diagonal.
 double SnapToleranceForCell(vtkDataSet* dataset, vtkIdType cellId)
 {
+  vtkNew<vtkIdList> ptIds;
+  dataset->GetCellPoints(cellId, ptIds);
+  if (ptIds->GetNumberOfIds() == 3)
+  {
+    double p[3][3];
+    for (int i = 0; i < 3; ++i)
+    {
+      dataset->GetPoint(ptIds->GetId(i), p[i]);
+    }
+    double minEdge2 = std::numeric_limits<double>::max();
+    for (int i = 0; i < 3; ++i)
+    {
+      const double d2 = vtkMath::Distance2BetweenPoints(p[i], p[(i + 1) % 3]);
+      if (d2 < minEdge2)
+      {
+        minEdge2 = d2;
+      }
+    }
+    return 0.10 * std::sqrt(minEdge2);
+  }
   double bounds[6];
   dataset->GetCellBounds(cellId, bounds);
   const double diag = std::sqrt((bounds[1] - bounds[0]) * (bounds[1] - bounds[0]) +

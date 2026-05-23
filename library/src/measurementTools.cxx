@@ -104,7 +104,10 @@ std::vector<vtkIdType> GrowCoplanarRegion(
         }
         double nbNormal[3];
         TriangleNormal(mesh, nb, nbNormal);
-        if (vtkMath::Dot(seedNormal, nbNormal) >= cosTol)
+        // |dot| so that triangles in the same plane with FLIPPED winding (their
+        // normal points the opposite way) are still treated as coplanar. Common
+        // in real-world meshes whose triangle winding is not strictly consistent.
+        if (std::fabs(vtkMath::Dot(seedNormal, nbNormal)) >= cosTol)
         {
           visited.insert(nb);
           frontier.push(nb);
